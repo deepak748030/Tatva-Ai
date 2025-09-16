@@ -8,6 +8,33 @@ class ChatController {
         this.tatvaModel = new TatvaModel();
     }
 
+    /**
+     * Generates a concise title for a chat conversation using the AI model.
+     * @param {string} initialPrompt The first message from the user.
+     * @returns {Promise<string>} The AI-generated title.
+     */
+    async _generateChatTitle(initialPrompt) {
+        try {
+            const titlePrompt = `Generate a concise, descriptive title (under 10 words) for a chat conversation based on the following first user message: "${initialPrompt}"`;
+            console.log(`[ChatTitle] Requesting title for prompt: "${initialPrompt.substring(0, 50)}..."`);
+
+            const requestBody = this.tatvaModel.createRequestBody(titlePrompt, false); // Non-streaming for title generation
+            const response = await this.tatvaModel.sendRequest(requestBody);
+            const data = await response.json();
+
+            let aiTitle = data.response || 'New Chat';
+            aiTitle = this.tatvaModel.cleanResponse(aiTitle).trim();
+
+            // Ensure title is not too long and remove any leading/trailing quotes
+            aiTitle = aiTitle.replace(/^["']|["']$/g, '').substring(0, 100); // Max 100 chars for title
+            console.log(`[ChatTitle] Generated title: "${aiTitle}"`);
+            return aiTitle;
+        } catch (error) {
+            console.error('[ChatTitle] Error generating chat title:', error);
+            return initialPrompt.substring(0, 50); // Fallback to first 50 chars of prompt
+        }
+    }
+
     async chat(req, res) {
         try {
             const { prompt, conversationId } = req.body;
@@ -24,6 +51,7 @@ class ChatController {
 
             let conversation;
             let history = [];
+            let isNewConversation = false;
 
             if (conversationId) {
                 console.log(`[Chat] Attempting to find conversation with ID: ${conversationId} for user: ${userId}`);
@@ -33,13 +61,21 @@ class ChatController {
                     console.log(`[Chat] Found existing conversation: ${conversationId} for user ${userId} with ${history.length} messages.`);
                 } else {
                     // If conversationId is provided but not found for this user, treat as new
-                    conversation = new ChatConversation({ userId, conversationId: uuidv4(), title: prompt.substring(0, 50) });
+                    isNewConversation = true;
+                    conversation = new ChatConversation({ userId, conversationId: uuidv4() }); // Title will be generated
                     console.log(`[Chat] ConversationId ${conversationId} not found for user ${userId}, starting new chat with ID: ${conversation.conversationId}.`);
                 }
             } else {
                 // New conversation
-                conversation = new ChatConversation({ userId, conversationId: uuidv4(), title: prompt.substring(0, 50) });
+                isNewConversation = true;
+                conversation = new ChatConversation({ userId, conversationId: uuidv4() }); // Title will be generated
                 console.log(`[Chat] No conversationId provided, starting new conversation with generated ID: ${conversation.conversationId}`);
+            }
+
+            // Generate title for new conversations
+            if (isNewConversation) {
+                conversation.title = await this._generateChatTitle(prompt);
+                console.log(`[Chat] Generated and set title for new conversation ${conversation.conversationId}: "${conversation.title}"`);
             }
 
             // Add user's current prompt to history for AI context
@@ -67,6 +103,7 @@ class ChatController {
                 success: true,
                 response: aiResponse,
                 conversationId: conversation.conversationId,
+                title: conversation.title, // Include the title in the response
                 created_at: data.created_at,
                 metadata: {
                     total_duration: data.total_duration,
@@ -114,6 +151,7 @@ class ChatController {
             console.log('[StreamChat] SSE headers sent.');
 
             let history = [];
+            let isNewConversation = false;
 
             if (conversationId) {
                 console.log(`[StreamChat] Attempting to find conversation with ID: ${conversationId} for user: ${userId}`);
@@ -123,13 +161,21 @@ class ChatController {
                     console.log(`[StreamChat] Found existing conversation: ${conversationId} for user ${userId} with ${history.length} messages.`);
                 } else {
                     // If conversationId is provided but not found for this user, treat as new
-                    conversation = new ChatConversation({ userId, conversationId: uuidv4(), title: prompt.substring(0, 50) });
+                    isNewConversation = true;
+                    conversation = new ChatConversation({ userId, conversationId: uuidv4() }); // Title will be generated
                     console.log(`[StreamChat] ConversationId ${conversationId} not found for user ${userId}, starting new chat with ID: ${conversation.conversationId}.`);
                 }
             } else {
                 // New conversation
-                conversation = new ChatConversation({ userId, conversationId: uuidv4(), title: prompt.substring(0, 50) });
+                isNewConversation = true;
+                conversation = new ChatConversation({ userId, conversationId: uuidv4() }); // Title will be generated
                 console.log(`[StreamChat] No conversationId provided, starting new conversation with generated ID: ${conversation.conversationId}`);
+            }
+
+            // Generate title for new conversations
+            if (isNewConversation) {
+                conversation.title = await this._generateChatTitle(prompt);
+                console.log(`[StreamChat] Generated and set title for new conversation ${conversation.conversationId}: "${conversation.title}"`);
             }
 
             // Add user's current prompt to history for AI context
@@ -142,18 +188,19 @@ class ChatController {
             const upstreamResponse = await this.tatvaModel.sendRequest(requestBody);
             console.log('[StreamChat] Received upstream response. Status:', upstreamResponse.status);
 
-            // Save user message immediately
+            // Save user message immediately and the conversation (including new title)
             conversation.messages.push({ role: 'user', content: prompt });
-            await conversation.save(); // Save to get the conversationId if new
-            console.log(`[StreamChat] User message saved. Conversation ${conversation.conversationId} updated. Current messages count: ${conversation.messages.length}.`);
+            await conversation.save(); // Save to get the conversationId if new, and persist title
+            console.log(`[StreamChat] User message and conversation title saved. Conversation ${conversation.conversationId} updated. Current messages count: ${conversation.messages.length}.`);
 
-            // Send initial SSE message with conversationId
+            // Send initial SSE message with conversationId and title
             res.write(`data: ${JSON.stringify({
                 success: true,
                 conversationId: conversation.conversationId,
+                title: conversation.title, // Include the title in the initial response
                 initial: true // Indicate initial response with conversationId
             })}\n\n`);
-            console.log(`[StreamChat] Sent initial SSE with conversationId: ${conversation.conversationId}`);
+            console.log(`[StreamChat] Sent initial SSE with conversationId: ${conversation.conversationId} and title: "${conversation.title}"`);
 
             // Create a Node.js Readable stream from the Web ReadableStream
             const webStream = Readable.fromWeb(upstreamResponse.body);
@@ -279,7 +326,8 @@ class ChatController {
                     response: '',
                     done: true,
                     fullResponse: fullAiResponse.trim(),
-                    conversationId: conversation ? conversation.conversationId : null
+                    conversationId: conversation ? conversation.conversationId : null,
+                    title: conversation ? conversation.title : null // Include the final title
                 })}\n\n`);
                 res.end();
                 console.log('[StreamChat] Final SSE message sent and response ended.');

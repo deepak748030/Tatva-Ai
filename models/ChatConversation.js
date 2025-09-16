@@ -31,7 +31,7 @@ const ChatConversationSchema = new mongoose.Schema({
     },
     title: {
         type: String,
-        default: 'New Chat' // Default title, can be updated later
+        default: 'New Chat' // Default title, can be updated later by AI
     },
     messages: [MessageSchema],
     createdAt: {
