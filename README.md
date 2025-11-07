@@ -833,6 +833,70 @@ A basic, stateless chat endpoint for quick interactions without conversation his
         }
         ```
 
+#### 5.4. A4F Chat Endpoint
+Engages in a conversation using A4F API with advanced AI models, supporting conversation history.
+
+*   **URL**: `/api/a4f-chat`
+*   **Method**: `POST`
+*   **Authentication**: Required (JWT)
+*   **Request Body**:
+    ```json
+    {
+        "prompt": "Hello, how are you?",
+        "conversationId": "optional-existing-conversation-id",
+        "model": "provider-1/chatgpt-4o-latest"
+    }
+    ```
+*   **Success Response**:
+    *   **Code**: `200 OK`
+    *   **Content**:
+        ```json
+        {
+            "success": true,
+            "response": "I am doing well, thank you for asking! How can I assist you today?",
+            "conversationId": "conversation-id",
+            "title": "Generated conversation title",
+            "provider": "A4F",
+            "model": "provider-1/chatgpt-4o-latest"
+        }
+        ```
+*   **Error Response**:
+    *   **Code**: `400 Bad Request`
+    *   **Content**:
+        ```json
+        {
+            "success": false,
+            "error": "Prompt is required and must be a string"
+        }
+        ```
+
+#### 5.5. A4F Streaming Chat Endpoint
+Provides real-time, streaming responses using A4F API.
+
+*   **URL**: `/api/a4f-chat/stream`
+*   **Method**: `POST`
+*   **Authentication**: Required (JWT)
+*   **Request Body**:
+    ```json
+    {
+        "prompt": "Tell me a story about a friendly robot.",
+        "conversationId": "optional-existing-conversation-id",
+        "model": "provider-1/chatgpt-4o-latest"
+    }
+    ```
+*   **Success Response**:
+    *   **Code**: `200 OK`
+    *   **Content**: (Server-Sent Events - SSE stream)
+        ```
+        data: {"success": true, "conversationId": "...", "title": "...", "provider": "A4F", "initial": true}
+
+        data: {"success": true, "response": "Once upon a time,", "done": false}
+
+        data: {"success": true, "response": " there was a friendly robot...", "done": false}
+
+        data: {"success": true, "response": "", "done": true, "fullResponse": "...", "conversationId": "..."}
+        ```
+
 ---
 
 ## 🤝 Contributing
@@ -844,5 +908,4 @@ Feel free to fork the repository, open issues, and submit pull requests.
 This project is licensed under the MIT License.
 
 ---
-#   T a t v a - A i  
- 
+#

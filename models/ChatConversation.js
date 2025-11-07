@@ -11,6 +11,11 @@ const MessageSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    metadata: {
+        tokens: { type: Number, default: 0 },
+        processingTime: { type: Number, default: 0 },
+        model: { type: String, default: 'gemma2:9b' }
+    },
     timestamp: {
         type: Date,
         default: Date.now
@@ -31,7 +36,32 @@ const ChatConversationSchema = new mongoose.Schema({
     },
     title: {
         type: String,
-        default: 'New Chat' // Default title, can be updated later by AI
+        default: 'नया चैट' // Default title in Bhojpuri
+    },
+    summary: {
+        type: String,
+        default: '' // AI-generated summary of conversation
+    },
+    tags: [{
+        type: String,
+        trim: true
+    }],
+    language: {
+        type: String,
+        default: 'bhojpuri',
+        enum: ['bhojpuri', 'english', 'mixed']
+    },
+    isActive: {
+        type: Boolean,
+        default: true
+    },
+    totalMessages: {
+        type: Number,
+        default: 0
+    },
+    totalTokens: {
+        type: Number,
+        default: 0
     },
     messages: [MessageSchema],
     createdAt: {
@@ -41,13 +71,75 @@ const ChatConversationSchema = new mongoose.Schema({
     updatedAt: {
         type: Date,
         default: Date.now
+    },
+    lastActivity: {
+        type: Date,
+        default: Date.now
     }
 });
+
+// Indexes for better performance
+ChatConversationSchema.index({ userId: 1, updatedAt: -1 });
+ChatConversationSchema.index({ conversationId: 1 });
+ChatConversationSchema.index({ userId: 1, isActive: 1 });
+ChatConversationSchema.index({ tags: 1 });
 
 // Update `updatedAt` field on save
 ChatConversationSchema.pre('save', function (next) {
     this.updatedAt = Date.now();
+    this.lastActivity = Date.now();
+    this.totalMessages = this.messages.length;
+    this.totalTokens = this.messages.reduce((total, msg) => total + (msg.metadata?.tokens || 0), 0);
     next();
 });
+
+// Method to add message with metadata
+ChatConversationSchema.methods.addMessage = function (role, content, metadata = {}) {
+    this.messages.push({
+        role,
+        content,
+        metadata: {
+            tokens: metadata.tokens || 0,
+            processingTime: metadata.processingTime || 0,
+            model: metadata.model || 'gemma2:9b'
+        }
+    });
+    return this;
+};
+
+// Method to get conversation statistics
+ChatConversationSchema.methods.getStats = function () {
+    const userMessages = this.messages.filter(msg => msg.role === 'user').length;
+    const assistantMessages = this.messages.filter(msg => msg.role === 'assistant').length;
+    const avgResponseTime = this.messages
+        .filter(msg => msg.role === 'assistant')
+        .reduce((sum, msg) => sum + (msg.metadata?.processingTime || 0), 0) / assistantMessages || 0;
+
+    return {
+        totalMessages: this.messages.length,
+        userMessages,
+        assistantMessages,
+        totalTokens: this.totalTokens,
+        avgResponseTime: Math.round(avgResponseTime),
+        duration: this.updatedAt - this.createdAt
+    };
+};
+
+// Method to generate conversation summary
+ChatConversationSchema.methods.generateSummary = function () {
+    if (this.messages.length < 4) return 'छोट बातचीत'; // Short conversation
+
+    const recentMessages = this.messages.slice(-6);
+    const topics = [];
+
+    recentMessages.forEach(msg => {
+        if (msg.content.length > 20) {
+            const words = msg.content.split(' ').slice(0, 3);
+            topics.push(words.join(' '));
+        }
+    });
+
+    return topics.length > 0 ? topics[0] + '...' : 'सामान्य बातचीत';
+};
 
 module.exports = mongoose.model('ChatConversation', ChatConversationSchema);
