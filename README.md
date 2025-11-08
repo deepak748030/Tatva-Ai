@@ -11,7 +11,7 @@ Welcome to the Tatva AI API Server! This is a robust backend application designe
 *   **User Management**: Full CRUD operations for user accounts (protected).
 *   **Chat Functionality**:
     *   Standard chat with conversation history using advanced A4F models.
-    *   Streaming chat for real-time responses using A4F models.
+    *   **Streaming chat for real-time responses using A4F models, now supporting multimodal input (text and images).**
     *   **Daily Free Request Limit**: Users without an active subscription receive 5 free requests per day, which reset daily.
     *   **Subscription Integration**: Placeholder for subscription status to bypass free request limits.
     *   **Web Search Integration**: Automatically performs web searches for current events or factual queries to provide up-to-date information.
@@ -32,6 +32,7 @@ Welcome to the Tatva AI API Server! This is a robust backend application designe
 *   **helmet**: For securing HTTP headers.
 *   **express-rate-limit**: For API rate limiting.
 *   **uuid**: For generating unique IDs.
+*   **multer**: For handling `multipart/form-data` (file uploads).
 *   **node-fetch**: For making HTTP requests (used internally by WebContainer's global `fetch`).
 
 ## ⚙️ Setup & Installation
@@ -58,7 +59,7 @@ Welcome to the Tatva AI API Server! This is a robust backend application designe
 
     ```env
     PORT=3000
-    MONGO_URI=mongodb://localhost:27017/tatva_ai_db # Your MongoDB connection string
+    MONGO_URI=mongodb://localhost:27017/tatva_ai # Your MongoDB connection string
     JWT_SECRET=your_jwt_secret_key_here # A strong, random secret key for JWT
     A4F_API_KEY=your_a4f_api_key_here # Your API key for A4F models
     ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000 # Comma-separated list of allowed origins for CORS
@@ -1141,24 +1142,29 @@ Engages in a conversation with the AI using A4F models, supporting conversation 
         ```
 
 #### 5.6. A4F Streaming Chat Endpoint
-Provides real-time, streaming responses using A4F models, supporting conversation history and web search.
+Provides real-time, streaming responses using A4F models, supporting conversation history and web search. **Now supports multimodal input (text and images).**
 
 *   **URL**: `/api/a4f-chat/stream`
 *   **Method**: `POST`
 *   **Authentication**: Required (JWT)
-*   **Request Body**:
-    ```json
-    {
-        "prompt": "Tell me a short story about a friendly robot.",
-        "conversationId": "optional-existing-conversation-id",
-        "model": "optional-model-identifier-like-provider-1/chatgpt-4o-latest",
-        "webSearch": false
-    }
-    ```
-    *   `prompt` (string, required): The user's message.
+*   **Request Body**: `multipart/form-data`
+    *   `prompt` (string, optional): The user's text message.
     *   `conversationId` (string, optional): If provided, the message will be added to this existing conversation. Otherwise, a new conversation is created.
     *   `model` (string, optional): The specific A4F model to use. Defaults to `provider-1/chatgpt-4o-latest`.
     *   `webSearch` (boolean, optional): Set to `true` to force a web search. Web search is also auto-enabled for certain types of queries.
+    *   `images` (file, optional, multiple): One or more image files (`.jpg`, `.jpeg`, `.png`, `.gif`, `.webp`). These will be saved to the server's `uploads` directory and their URLs passed to the AI model.
+
+    **Example `FormData` structure for client-side request:**
+    ```javascript
+    const formData = new FormData();
+    formData.append('prompt', 'Can you see this image inside?');
+    formData.append('conversationId', 'optional-existing-conversation-id');
+    formData.append('model', 'provider-3/llama-3-70b'); // Example model
+    formData.append('webSearch', 'false'); // Must be a string for FormData boolean
+    formData.append('images', imageFile1, 'image1.png'); // Append image file
+    formData.append('images', imageFile2, 'image2.jpeg'); // Append multiple image files
+    ```
+
 *   **Success Response**:
     *   **Code**: `200 OK`
     *   **Content**: (Server-Sent Events - SSE stream)
@@ -1183,7 +1189,7 @@ Provides real-time, streaming responses using A4F models, supporting conversatio
     *   **Code**: `200 OK` (but with error data in stream)
     *   **Content**: (Server-Sent Events - SSE stream)
         ```
-        data: {"success": false, "error": "Prompt is required and must be a string", "done": true}
+        data: {"success": false, "error": "Prompt or image is required", "done": true}
         ```
     *   **Code**: `500 Internal Server Error` (if headers not sent yet)
     *   **Content**:
