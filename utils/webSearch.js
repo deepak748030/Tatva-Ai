@@ -12,25 +12,25 @@ class WebSearchService {
      * @returns {string} - Optimized search query
      */
     extractSearchKeywords(prompt) {
-        console.log(`[WebSearch] Original prompt: "${prompt}"`);
+        // console.log(`[WebSearch] Original prompt: "${prompt}"`);
 
         const lowerPrompt = prompt.toLowerCase();
 
         // Specific handling for date, day, and weather queries in English
         if (lowerPrompt.includes('current date') || lowerPrompt.includes('what is the date')) {
-            console.log(`[WebSearch] Detected date query, setting search query to "current date today"`);
+            // console.log(`[WebSearch] Detected date query, setting search query to "current date today"`);
             return "current date today";
         }
         if (lowerPrompt.includes('current day') || lowerPrompt.includes('what day is it')) {
-            console.log(`[WebSearch] Detected day query, setting search query to "current day of the week today"`);
+            // console.log(`[WebSearch] Detected day query, setting search query to "current day of the week today"`);
             return "current day of the week today";
         }
         if (lowerPrompt.includes('current weather') || lowerPrompt.includes('what is the weather')) {
-            console.log(`[WebSearch] Detected weather query, setting search query to "current weather"`);
+            // console.log(`[WebSearch] Detected weather query, setting search query to "current weather"`);
             return "current weather";
         }
         if (lowerPrompt.includes('current time') || lowerPrompt.includes('what is the time')) {
-            console.log(`[WebSearch] Detected time query, setting search query to "current time now"`);
+            // console.log(`[WebSearch] Detected time query, setting search query to "current time now"`);
             return "current time now";
         }
 
@@ -48,7 +48,7 @@ class WebSearchService {
             .replace(/\s+/g, ' ')
             .trim();
 
-        console.log(`[WebSearch] Cleaned prompt for general extraction: "${cleanedPrompt}"`);
+        // console.log(`[WebSearch] Cleaned prompt for general extraction: "${cleanedPrompt}"`);
 
         // Split into words and filter out stop words
         const words = cleanedPrompt.split(' ')
@@ -58,12 +58,12 @@ class WebSearchService {
         // If no meaningful keywords found, return original prompt (cleaned)
         if (words.length === 0) {
             const fallback = cleanedPrompt.slice(0, 100);
-            console.log(`[WebSearch] No general keywords found, using fallback: "${fallback}"`);
+            // console.log(`[WebSearch] No general keywords found, using fallback: "${fallback}"`);
             return fallback;
         }
 
         const searchQuery = words.join(' ');
-        console.log(`[WebSearch] Extracted general keywords: "${searchQuery}"`);
+        // console.log(`[WebSearch] Extracted general keywords: "${searchQuery}"`);
         return searchQuery;
     }
 
@@ -74,10 +74,10 @@ class WebSearchService {
      */
     async searchDuckDuckGo(query) {
         try {
-            console.log(`[WebSearch] Searching DuckDuckGo for: "${query}"`);
+            // console.log(`[WebSearch] Searching DuckDuckGo for: "${query}"`);
 
             const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
-            console.log(`[WebSearch] DuckDuckGo URL: ${searchUrl}`);
+            // console.log(`[WebSearch] DuckDuckGo URL: ${searchUrl}`);
 
             const response = await fetch(searchUrl, { // Using global fetch
                 method: 'GET',
@@ -87,19 +87,19 @@ class WebSearchService {
                 timeout: this.TIMEOUT
             });
 
-            console.log(`[WebSearch] DuckDuckGo response status: ${response.status}`);
+            // console.log(`[WebSearch] DuckDuckGo response status: ${response.status}`);
 
             if (!response.ok) {
                 throw new Error(`DuckDuckGo API returned status: ${response.status} - ${response.statusText}`);
             }
 
             const data = await response.json();
-            console.log(`[WebSearch] DuckDuckGo raw response:`, JSON.stringify(data, null, 2));
+            // console.log(`[WebSearch] DuckDuckGo raw response:`, JSON.stringify(data, null, 2));
 
             return this.formatDuckDuckGoResults(data, query);
 
         } catch (error) {
-            console.error('[WebSearch] DuckDuckGo search failed:', error.message);
+            // console.error('[WebSearch] DuckDuckGo search failed:', error.message);
             return {
                 success: false,
                 error: error.message,
@@ -130,7 +130,7 @@ class WebSearchService {
                     engine: 'DuckDuckGo'
                 };
                 results.push(abstractResult);
-                console.log(`[WebSearch] DuckDuckGo Abstract:`, abstractResult);
+                // console.log(`[WebSearch] DuckDuckGo Abstract:`, abstractResult);
             }
 
             // Extract Definition
@@ -145,7 +145,7 @@ class WebSearchService {
                     engine: 'DuckDuckGo'
                 };
                 results.push(definitionResult);
-                console.log(`[WebSearch] DuckDuckGo Definition:`, definitionResult);
+                // console.log(`[WebSearch] DuckDuckGo Definition:`, definitionResult);
             }
 
             // Extract Answer (direct answer)
@@ -160,7 +160,7 @@ class WebSearchService {
                     engine: 'DuckDuckGo'
                 };
                 results.push(answerResult);
-                console.log(`[WebSearch] DuckDuckGo Answer:`, answerResult);
+                // console.log(`[WebSearch] DuckDuckGo Answer:`, answerResult);
             }
 
             // Extract Related Topics
@@ -177,12 +177,12 @@ class WebSearchService {
                             engine: 'DuckDuckGo'
                         };
                         results.push(relatedResult);
-                        console.log(`[WebSearch] DuckDuckGo Related ${index + 1}:`, relatedResult);
+                        // console.log(`[WebSearch] DuckDuckGo Related ${index + 1}:`, relatedResult);
                     }
                 });
             }
 
-            console.log(`[WebSearch] Formatted ${results.length} DuckDuckGo results`);
+            // console.log(`[WebSearch] Formatted ${results.length} DuckDuckGo results`);
 
             return {
                 success: results.length > 0,
@@ -194,7 +194,7 @@ class WebSearchService {
             };
 
         } catch (error) {
-            console.error('[WebSearch] Error formatting DuckDuckGo results:', error.message);
+            // console.error('[WebSearch] Error formatting DuckDuckGo results:', error.message);
             return {
                 success: false,
                 error: 'Failed to format DuckDuckGo results',
@@ -210,11 +210,11 @@ class WebSearchService {
      */
     createSearchContext(searchResults) {
         if (!searchResults.success || searchResults.results.length === 0) {
-            console.log('[WebSearch] No search context created - no results');
+            // console.log('[WebSearch] No search context created - no results');
             return '';
         }
 
-        console.log(`[WebSearch] Creating search context with ${searchResults.results.length} results`);
+        // console.log(`[WebSearch] Creating search context with ${searchResults.results.length} results`);
 
         let context = `\n\n🔍 Latest Web Search Results (searched on ${new Date().toLocaleString('en-US')}):\n`;
         context += `Search Query: "${searchResults.query}"\n`;
@@ -246,7 +246,7 @@ class WebSearchService {
         context += `- Mention dates and facts provided in the search results.\n`;
         context += `- Clearly state if new information was found.\n\n`;
 
-        console.log(`[WebSearch] Created search context (${context.length} characters):`, context);
+        // console.log(`[WebSearch] Created search context (${context.length} characters):`, context);
         return context;
     }
 
@@ -257,18 +257,18 @@ class WebSearchService {
      */
     async performWebSearch(prompt) {
         try {
-            console.log(`[WebSearch] ========== STARTING WEB SEARCH ==========`);
-            console.log(`[WebSearch] User prompt: "${prompt}"`);
+            // console.log(`[WebSearch] ========== STARTING WEB SEARCH ==========`);
+            // console.log(`[WebSearch] User prompt: "${prompt}"`);
 
             // Extract keywords from prompt
             const searchQuery = this.extractSearchKeywords(prompt);
 
             if (!searchQuery || searchQuery.trim().length < 2) {
-                console.log('[WebSearch] No meaningful search query extracted, skipping web search');
+                // console.log('[WebSearch] No meaningful search query extracted, skipping web search');
                 return '';
             }
 
-            console.log(`[WebSearch] Final search query: "${searchQuery}"`);
+            // console.log(`[WebSearch] Final search query: "${searchQuery}"`);
 
             // NEW: Handle specific date/time/day queries internally
             const now = new Date();
@@ -333,28 +333,28 @@ class WebSearchService {
             let searchResults;
             if (internalResult) {
                 searchResults = internalResult;
-                console.log('[WebSearch] Using internally generated date/time/day.');
+                // console.log('[WebSearch] Using internally generated date/time/day.');
             } else {
                 // Directly call DuckDuckGo search
-                console.log('[WebSearch] Attempting DuckDuckGo search...');
+                // console.log('[WebSearch] Attempting DuckDuckGo search...');
                 searchResults = await this.searchDuckDuckGo(searchQuery);
             }
 
-            console.log(`[WebSearch] Final search results:`, JSON.stringify(searchResults, null, 2));
+            // console.log(`[WebSearch] Final search results:`, JSON.stringify(searchResults, null, 2));
 
             // Create context from search results
             const context = this.createSearchContext(searchResults);
 
-            console.log(`[WebSearch] ========== WEB SEARCH COMPLETED ==========`);
-            console.log(`[WebSearch] Context created: ${context ? 'YES' : 'NO'}`);
-            console.log(`[WebSearch] Context length: ${context.length} characters`);
+            // console.log(`[WebSearch] ========== WEB SEARCH COMPLETED ==========`);
+            // console.log(`[WebSearch] Context created: ${context ? 'YES' : 'NO'}`);
+            // console.log(`[WebSearch] Context length: ${context.length} characters`);
 
             return context;
 
         } catch (error) {
-            console.error('[WebSearch] ========== WEB SEARCH ERROR ==========');
-            console.error('[WebSearch] Error details:', error);
-            console.error('[WebSearch] Stack trace:', error.stack);
+            // console.error('[WebSearch] ========== WEB SEARCH ERROR ==========');
+            // console.error('[WebSearch] Error details:', error);
+            // console.error('[WebSearch] Stack trace:', error.stack);
             return '';
         }
     }
@@ -376,7 +376,7 @@ class WebSearchService {
         const lowerPrompt = prompt.toLowerCase();
         const shouldSearch = searchIndicators.some(indicator => lowerPrompt.includes(indicator.toLowerCase()));
 
-        console.log(`[WebSearch] Should perform web search for "${prompt.substring(0, 50)}...": ${shouldSearch}`);
+        // console.log(`[WebSearch] Should perform web search for "${prompt.substring(0, 50)}...": ${shouldSearch}`);
 
         return shouldSearch;
     }
@@ -387,7 +387,7 @@ class WebSearchService {
      * @returns {Promise<Object>} - Search results
      */
     async enhancedSearch(query) {
-        console.log(`[WebSearch] Starting enhanced search for: "${query}"`);
+        // console.log(`[WebSearch] Starting enhanced search for: "${query}"`);
         // With only DuckDuckGo, enhanced search directly calls it.
         return await this.searchDuckDuckGo(query);
     }

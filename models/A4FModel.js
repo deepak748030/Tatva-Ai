@@ -58,13 +58,13 @@ class A4FModel {
 Remember: You are not just an AI, but a representative of Bihar's culture. Be proud of your identity and language! Every response should reflect clarity and helpfulness.`;
 
         if (!this.A4F_API_KEY) {
-            // console.warn('[A4FModel] A4F_API_KEY not found in environment variables');
+            console.warn('[A4FModel] A4F_API_KEY not found in environment variables');
         }
     }
 
     /**
      * Creates request body for A4F API
-     * @param {Array} messages - Array of message objects with role and content
+     * @param {Array} messages - Array of message objects with role and content (can be string or multimodal array)
      * @param {boolean} stream - Whether to enable streaming
      * @param {string} model - Model to use (default: provider-1/chatgpt-4o-latest)
      * @param {boolean} includeSystemPrompt - Whether to include the system prompt (default: true)
@@ -72,29 +72,45 @@ Remember: You are not just an AI, but a representative of Bihar's culture. Be pr
      * @returns {Object} Request body for A4F API
      */
     async createA4FRequestBody(messages, stream = true, model = "provider-1/chatgpt-4o-latest", includeSystemPrompt = true, webSearch = false) {
-        let processedMessages = [...messages];
+        let processedMessages = messages.map(msg => {
+            // Ensure content is always an array of parts for A4F
+            if (typeof msg.content === 'string') {
+                return { role: msg.role, content: [{ type: 'text', text: msg.content }] };
+            }
+            return msg;
+        });
 
         // Perform web search if requested
-        if (webSearch && messages.length > 0) {
-            const lastUserMessage = messages[messages.length - 1];
-            if (lastUserMessage.role === 'user') {
-                // console.log(`[A4FModel] ========== STARTING WEB SEARCH FOR A4F ==========`);
-                // console.log(`[A4FModel] User query for web search: "${lastUserMessage.content}"`);
-                const searchContext = await this.webSearchService.performWebSearch(lastUserMessage.content);
+        if (webSearch && processedMessages.length > 0) {
+            const lastUserMessageIndex = processedMessages.length - 1;
+            const lastUserMessage = processedMessages[lastUserMessageIndex];
 
-                if (searchContext) {
-                    // console.log(`[A4FModel] Web search successful! Context length: ${searchContext.length} characters`);
-                    // console.log(`[A4FModel] Search context preview: "${searchContext.substring(0, 200)}..."`);
-                    // Add search context to the user's message
-                    processedMessages[processedMessages.length - 1] = {
-                        ...lastUserMessage,
-                        content: lastUserMessage.content + searchContext
-                    };
-                    // console.log(`[A4FModel] Web search context added to user message. New message length: ${processedMessages[processedMessages.length - 1].content.length} characters`);
-                } else {
-                    // console.log('[A4FModel] ❌ No relevant web search results found or search failed');
+            if (lastUserMessage.role === 'user') {
+                // Extract text content from the last user message for web search query
+                const textPart = lastUserMessage.content.find(part => part.type === 'text');
+                const userQuery = textPart ? textPart.text : '';
+
+                if (userQuery) {
+                    console.log(`[A4FModel] ========== STARTING WEB SEARCH FOR A4F ==========`);
+                    console.log(`[A4FModel] User query for web search: "${userQuery}"`);
+                    const searchContext = await this.webSearchService.performWebSearch(userQuery);
+
+                    if (searchContext) {
+                        console.log(`[A4FModel] Web search successful! Context length: ${searchContext.length} characters`);
+                        console.log(`[A4FModel] Search context preview: "${searchContext.substring(0, 200)}..."`);
+
+                        // Append search context to the existing text part or add a new text part
+                        if (textPart) {
+                            textPart.text += searchContext;
+                        } else {
+                            lastUserMessage.content.push({ type: 'text', text: searchContext });
+                        }
+                        console.log(`[A4FModel] Web search context added to user message. New message length: ${JSON.stringify(lastUserMessage.content).length} characters`);
+                    } else {
+                        console.log('[A4FModel] ❌ No relevant web search results found or search failed');
+                    }
+                    console.log(`[A4FModel] ========== WEB SEARCH FOR A4F COMPLETED ==========`);
                 }
-                // console.log(`[A4FModel] ========== WEB SEARCH FOR A4F COMPLETED ==========`);
             }
         }
 
@@ -103,7 +119,7 @@ Remember: You are not just an AI, but a representative of Bihar's culture. Be pr
             messages: includeSystemPrompt ? [
                 {
                     role: 'system',
-                    content: this.SYSTEM_PROMPT
+                    content: [{ type: 'text', text: this.SYSTEM_PROMPT }] // System prompt also as multimodal text
                 },
                 ...processedMessages
             ] : processedMessages,
@@ -124,12 +140,12 @@ Remember: You are not just an AI, but a representative of Bihar's culture. Be pr
             throw new Error('A4F_API_KEY is not configured in environment variables');
         }
 
-        // console.log(`[A4FModel] Sending request to A4F API:`, JSON.stringify(requestBody, null, 2));
-        // console.log(`[A4FModel] A4F API URL:`, this.A4F_BASE_URL);
+        console.log(`[A4FModel] Sending request to A4F API:`, JSON.stringify(requestBody, null, 2));
+        console.log(`[A4FModel] A4F API URL:`, this.A4F_BASE_URL);
 
         for (let attempt = 1; attempt <= retries; attempt++) {
             try {
-                // console.log(`[A4FModel] API Attempt ${attempt}/${retries} - Sending request to A4F...`);
+                console.log(`[A4FModel] API Attempt ${attempt}/${retries} - Sending request to A4F...`);
 
                 const response = await fetch(this.A4F_BASE_URL, {
                     method: "POST",
@@ -141,18 +157,18 @@ Remember: You are not just an AI, but a representative of Bihar's culture. Be pr
                     timeout: 30000
                 });
 
-                // console.log(`[A4FModel] A4F API Response Status:`, response.status);
-                // console.log(`[A4FModel] A4F API Response Headers:`, Object.fromEntries(response.headers.entries()));
+                console.log(`[A4FModel] A4F API Response Status:`, response.status);
+                console.log(`[A4FModel] A4F API Response Headers:`, Object.fromEntries(response.headers.entries()));
 
                 if (!response.ok) {
                     throw new Error(`A4F API request failed with status: ${response.status} - ${response.statusText}`);
                 }
 
-                // console.log(`[A4FModel] Successfully connected to A4F API`);
+                console.log(`[A4FModel] Successfully connected to A4F API`);
                 return response;
 
             } catch (error) {
-                // console.error(`[A4FModel] API Attempt ${attempt} failed:`, error.message);
+                console.error(`[A4FModel] API Attempt ${attempt} failed:`, error.message);
 
                 if (attempt === retries) {
                     throw new Error(`Failed to connect to A4F API after ${retries} attempts: ${error.message}`);
@@ -207,7 +223,7 @@ Remember: You are not just an AI, but a representative of Bihar's culture. Be pr
             }
 
             // Simple test request to check API availability
-            const testMessages = [{ role: "user", content: "Hello" }];
+            const testMessages = [{ role: "user", content: [{ type: 'text', text: "Hello" }] }]; // Test message as multimodal
             const requestBody = await this.createA4FRequestBody(testMessages, false, "provider-1/chatgpt-4o-latest", false, false); // Don't include system prompt or web search for health check
 
             const response = await fetch(this.A4F_BASE_URL, {
@@ -231,6 +247,4 @@ Remember: You are not just an AI, but a representative of Bihar's culture. Be pr
     }
 }
 
-
 module.exports = A4FModel;
-

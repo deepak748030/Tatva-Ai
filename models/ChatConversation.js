@@ -8,7 +8,7 @@ const MessageSchema = new mongoose.Schema({
         required: true
     },
     content: {
-        type: String,
+        type: mongoose.Schema.Types.Mixed, // MODIFIED: Changed type to Mixed for multimodal content
         required: true
     },
     metadata: {
@@ -89,7 +89,17 @@ ChatConversationSchema.pre('save', function (next) {
     this.updatedAt = Date.now();
     this.lastActivity = Date.now();
     this.totalMessages = this.messages.length;
-    this.totalTokens = this.messages.reduce((total, msg) => total + (msg.metadata?.tokens || 0), 0);
+    // MODIFIED: Adjust totalTokens calculation for mixed content
+    this.totalTokens = this.messages.reduce((total, msg) => {
+        if (Array.isArray(msg.content)) {
+            // If content is an array, sum tokens from text parts
+            return total + (msg.metadata?.tokens || 0);
+        } else if (typeof msg.content === 'string') {
+            // If content is a string, estimate tokens (simple char count for now)
+            return total + Math.ceil(msg.content.length / 4); // Rough estimate
+        }
+        return total;
+    }, 0);
     next();
 });
 
@@ -133,8 +143,16 @@ ChatConversationSchema.methods.generateSummary = function () {
     const topics = [];
 
     recentMessages.forEach(msg => {
-        if (msg.content.length > 20) {
-            const words = msg.content.split(' ').slice(0, 3);
+        let contentText = '';
+        if (Array.isArray(msg.content)) {
+            const textPart = msg.content.find(part => part.type === 'text');
+            if (textPart) contentText = textPart.text;
+        } else if (typeof msg.content === 'string') {
+            contentText = msg.content;
+        }
+
+        if (contentText.length > 20) {
+            const words = contentText.split(' ').slice(0, 3);
             topics.push(words.join(' '));
         }
     });

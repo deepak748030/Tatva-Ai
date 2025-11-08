@@ -4,6 +4,9 @@ const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const mongoose = require('mongoose'); // Import mongoose
+const path = require('path'); // NEW: Import path module
+const fs = require('fs');     // NEW: Import fs module
+
 const chatRoutes = require('./routes/chatRoutes');
 const systemRoutes = require('./routes/systemRoutes');
 const authRoutes = require('./routes/authRoutes'); // Import auth routes
@@ -84,6 +87,18 @@ app.use(cors({
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 
+// NEW: Create uploads directory if it doesn't exist
+const uploadsDir = path.join(__dirname, 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+    fs.mkdirSync(uploadsDir, { recursive: true });
+    console.log(`[Server] Created uploads directory at ${uploadsDir}`);
+}
+
+// NEW: Serve static files from the 'uploads' directory
+app.use('/uploads', express.static(uploadsDir));
+console.log(`[Server] Serving static files from /uploads at ${uploadsDir}`);
+
+
 // Diagnostic log for authRoutes
 console.log('[Server] Auth routes module loaded. Is it an Express Router?', typeof authRoutes === 'function' && authRoutes.stack && authRoutes.stack.length > 0);
 
@@ -118,10 +133,10 @@ const server = app.listen(PORT, () => {
     console.log(`📝 API Documentation: http://localhost:${PORT}/api/info`);
     console.log(`💚 Health Check: http://localhost:${PORT}/api/health`);
     console.log(`🔑 Auth Endpoints: http://localhost:${PORT}/api/auth/register, http://localhost:${PORT}/api/auth/login`);
-    // console.log(`🤖 AI Model Management: http://localhost:${PORT}/api/ai-models`);
+    console.log(`🤖 AI Model Management: http://localhost:${PORT}/api/ai-models`);
     console.log(`👤 User Management: http://localhost:${PORT}/api/users`);
     console.log(`🌐 A4F Endpoint: https://api.a4f.co/v1/chat/completions`);
-    // console.log(`🧠 AI Model: provider-1/chatgpt-4o-latest`);
+    console.log(`🧠 AI Model: provider-1/chatgpt-4o-latest`);
     console.log(`🗣️ Default Language: English`);
 });
 
