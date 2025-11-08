@@ -10,7 +10,14 @@ const userSchema = new mongoose.Schema({
         lowercase: true,
         match: [/.+@.+\..+/, 'Please fill a valid email address']
     },
-    phoneNumber: { // Added phoneNumber field
+    username: {
+        type: String,
+        required: true,
+        unique: true,
+        trim: true,
+        minlength: 3
+    },
+    phoneNumber: {
         type: String,
         required: true,
         unique: true,
@@ -20,11 +27,40 @@ const userSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    baseDailyRequests: { // NEW: Base free requests
+        type: Number,
+        default: 5
+    },
+    bonusRequests: { // NEW: Requests from subscription
+        type: Number,
+        default: 0
+    },
+    dailyRequestsRemaining: { // MODIFIED: Renamed from dailyFreeRequests
+        type: Number,
+        default: 5 // Default starting free requests for new users
+    },
+    lastRequestDate: {
+        type: Date,
+        default: Date.now
+    },
+    hasActiveSubscription: {
+        type: Boolean,
+        default: false
+    },
+    subscriptionPlan: { // NEW: Stores the active subscription plan
+        type: String,
+        enum: ['none', 'basic', 'premium', 'unlimited'],
+        default: 'none'
+    },
+    subscriptionEndDate: { // NEW: Date when subscription expires
+        type: Date,
+        default: null
+    },
     createdAt: {
         type: Date,
         default: Date.now
     },
-    updatedAt: { // Added updatedAt field
+    updatedAt: {
         type: Date,
         default: Date.now
     }
@@ -32,11 +68,11 @@ const userSchema = new mongoose.Schema({
 
 // Hash password before saving
 userSchema.pre('save', async function (next) {
-    if (this.isModified('password')) { // Only hash if password is new or modified
+    if (this.isModified('password')) {
         const salt = await bcrypt.genSalt(10);
         this.password = await bcrypt.hash(this.password, salt);
     }
-    this.updatedAt = Date.now(); // Update updatedAt on every save
+    this.updatedAt = Date.now();
     next();
 });
 
@@ -48,3 +84,4 @@ userSchema.methods.matchPassword = async function (enteredPassword) {
 const User = mongoose.model('User', userSchema);
 
 module.exports = User;
+

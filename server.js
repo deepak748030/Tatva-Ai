@@ -9,13 +9,13 @@ const systemRoutes = require('./routes/systemRoutes');
 const authRoutes = require('./routes/authRoutes'); // Import auth routes
 const aiModelRoutes = require('./routes/aiModelRoutes'); // Import AI Model routes
 const userRoutes = require('./routes/userRoutes'); // NEW: Import User routes
-const SystemController = require('./controllers/systemController');
+const SystemController = require('./controllers/systemController'); // Re-import to ensure it's the updated version
 const { notFoundHandler, errorHandler } = require('./middleware/errorHandler');
 const { protect } = require('./middleware/authMiddleware'); // Import protect middleware
 
 const app = express();
 const PORT = process.env.PORT || 3000;
-const systemController = new SystemController();
+const systemController = new SystemController(); // Re-instantiate to use the updated class
 
 // Security middleware
 app.use(helmet({
@@ -29,25 +29,25 @@ const limiter = rateLimit({
     max: 100, // limit each IP to 100 requests per windowMs
     message: {
         success: false,
-        error: 'बहुत ज्यादा अनुरोध। कृपया बाद में कोशिश करीं।'
+        error: 'Too many requests. Please try again later.'
     }
 });
 
 // Apply rate limiting to all requests
 app.use('/api/', limiter);
 
-// Stricter rate limiting for chat endpoints
+// Stricter rate limiting for chat endpoints (only A4F now)
 const chatLimiter = rateLimit({
     windowMs: 1 * 60 * 1000, // 1 minute
     max: 20, // limit each IP to 20 chat requests per minute
     message: {
         success: false,
-        error: 'चैट अनुरोध की सीमा पार हो गइल। कृपया एक मिनट बाद कोशिश करीं।'
+        error: 'Chat request limit exceeded. Please try again in a minute.'
     }
 });
 
-app.use('/api/chat', chatLimiter);
-app.use('/api/simple-chat', chatLimiter);
+app.use('/api/a4f-chat', chatLimiter); // Apply to A4F non-streaming
+app.use('/api/a4f-chat/stream', chatLimiter); // Apply to A4F streaming
 
 // Connect to MongoDB
 mongoose.connect(process.env.MONGO_URI)
@@ -118,11 +118,11 @@ const server = app.listen(PORT, () => {
     console.log(`📝 API Documentation: http://localhost:${PORT}/api/info`);
     console.log(`💚 Health Check: http://localhost:${PORT}/api/health`);
     console.log(`🔑 Auth Endpoints: http://localhost:${PORT}/api/auth/register, http://localhost:${PORT}/api/auth/login`);
-    console.log(`🤖 AI Model Management: http://localhost:${PORT}/api/ai-models`);
+    // console.log(`🤖 AI Model Management: http://localhost:${PORT}/api/ai-models`);
     console.log(`👤 User Management: http://localhost:${PORT}/api/users`);
-    console.log(`🌐 Ollama Endpoint: http://194.164.148.9:18480/`);
-    console.log(`🧠 AI Model: gemma2:9b`);
-    console.log(`🗣️ Primary Language: Bhojpuri (भोजपुरी)`);
+    console.log(`🌐 A4F Endpoint: https://api.a4f.co/v1/chat/completions`);
+    // console.log(`🧠 AI Model: provider-1/chatgpt-4o-latest`);
+    console.log(`🗣️ Default Language: English`);
 });
 
 // Graceful shutdown

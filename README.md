@@ -10,11 +10,14 @@ Welcome to the Tatva AI API Server! This is a robust backend application designe
 *   **AI Model Management**: CRUD operations for managing different AI models.
 *   **User Management**: Full CRUD operations for user accounts (protected).
 *   **Chat Functionality**:
-    *   Standard chat with conversation history.
-    *   Streaming chat for real-time responses.
-    *   Simple chat for basic, stateless interactions.
+    *   Standard chat with conversation history using advanced A4F models.
+    *   Streaming chat for real-time responses using A4F models.
+    *   **Daily Free Request Limit**: Users without an active subscription receive 5 free requests per day, which reset daily.
+    *   **Subscription Integration**: Placeholder for subscription status to bypass free request limits.
+    *   **Web Search Integration**: Automatically performs web searches for current events or factual queries to provide up-to-date information.
 *   **System Health & Info**: Endpoints to check server status and API documentation.
 *   **Error Handling**: Centralized error handling for a consistent API experience.
+*   **English-First AI**: The AI assistant, Tatva, prioritizes English responses and only uses Bhojpuri when explicitly requested by the user.
 
 ## 🛠️ Tech Stack
 
@@ -26,6 +29,10 @@ Welcome to the Tatva AI API Server! This is a robust backend application designe
 *   **jsonwebtoken**: For secure authentication.
 *   **dotenv**: For environment variable management.
 *   **cors**: For Cross-Origin Resource Sharing.
+*   **helmet**: For securing HTTP headers.
+*   **express-rate-limit**: For API rate limiting.
+*   **uuid**: For generating unique IDs.
+*   **node-fetch**: For making HTTP requests (used internally by WebContainer's global `fetch`).
 
 ## ⚙️ Setup & Installation
 
@@ -53,8 +60,10 @@ Welcome to the Tatva AI API Server! This is a robust backend application designe
     PORT=3000
     MONGO_URI=mongodb://localhost:27017/tatva_ai_db # Your MongoDB connection string
     JWT_SECRET=your_jwt_secret_key_here # A strong, random secret key for JWT
+    A4F_API_KEY=your_a4f_api_key_here # Your API key for A4F models
+    ALLOWED_ORIGINS=http://localhost:5173,http://localhost:3000 # Comma-separated list of allowed origins for CORS
     ```
-    *Replace `your_jwt_secret_key_here` with a strong, unique secret.*
+    *Replace `your_jwt_secret_key_here` and `your_a4f_api_key_here` with strong, unique secrets.*
 
 4.  **Start the server:**
     ```bash
@@ -87,7 +96,8 @@ Checks the operational status of the server.
             "status": "OK",
             "message": "Tatva AI Server is running!",
             "timestamp": "2025-01-01T12:00:00.000Z",
-            "version": "1.0.0"
+            "version": "2.0.0",
+            "language": "English (default), Bhojpuri"
         }
         ```
 *   **Error Response**:
@@ -96,7 +106,8 @@ Checks the operational status of the server.
         ```json
         {
             "success": false,
-            "message": "An unexpected error occurred."
+            "message": "An unexpected error occurred.",
+            "stack": "..."
         }
         ```
 
@@ -112,27 +123,47 @@ Provides general information about the API and lists all available endpoints.
         ```json
         {
             "name": "Tatva AI API Server",
-            "description": "Bilingual AI assistant specializing in English and Bhojpuri languages",
+            "description": "Bilingual AI assistant - specializing in English and Bhojpuri",
+            "version": "2.0.0",
+            "a4f": {
+                "endpoint": "https://api.a4f.co/v1/chat/completions",
+                "model": "provider-1/chatgpt-4o-latest",
+                "status": "healthy"
+            },
             "endpoints": {
-                "POST /api/chat": "Main chat endpoint with conversation history support",
-                "POST /api/chat/stream": "Streaming chat endpoint with real-time responses",
-                "POST /api/simple-chat": "Simple chat endpoint for basic usage",
+                "POST /api/a4f-chat": "A4F Chat Endpoint - with advanced AI models",
+                "POST /api/a4f-chat/stream": "A4F Streaming Chat - real-time A4F responses",
+                "GET /api/chat/history": "List all conversations (protected)",
+                "GET /api/chat/history/:id": "View a specific conversation (protected)",
+                "DELETE /api/chat/history/:id": "Delete a conversation (protected)",
+                "GET /api/chat/stats": "Conversation statistics (protected)",
                 "GET /api/health": "Server health check",
                 "GET /api/info": "API information",
-                "POST /api/auth/register": "Register a new user - Requires { email: \"string\", password: \"string\", phoneNumber: \"string\" }",
-                "POST /api/auth/login": "Authenticate user and get JWT token - Requires { email: \"string\", password: \"string\" }",
-                "POST /api/ai-models": "Create a new AI model (Protected) - Requires { name: \"string\", modelIdentifier: \"string\" }",
-                "GET /api/ai-models": "Get all AI models (Protected)",
-                "GET /api/ai-models/:id": "Get a single AI model by ID (Protected)",
-                "PUT /api/ai-models/:id": "Update an AI model by ID (Protected) - Requires { name?: \"string\", modelIdentifier?: \"string\" }",
-                "DELETE /api/ai-models/:id": "Delete an AI model by ID (Protected)",
-                "GET /api/users": "Get all users (Protected)",
-                "GET /api/users/:id": "Get a single user by ID (Protected)",
-                "PUT /api/users/:id": "Update a user by ID (Protected) - Requires { email?: \"string\", phoneNumber?: \"string\", password?: \"string\" }",
-                "DELETE /api/users/:id": "Delete a user by ID (Protected)"
+                "POST /api/auth/register": "New user registration",
+                "POST /api/auth/login": "User login",
+                "POST /api/ai-models": "Create a new AI model (protected)",
+                "GET /api/ai-models": "View all AI models (protected)",
+                "GET /api/ai-models/:id": "View a specific AI model (protected)",
+                "PUT /api/ai-models/:id": "Update an AI model (protected)",
+                "DELETE /api/ai-models/:id": "Delete an AI model (protected)",
+                "GET /api/users": "View all users (protected)",
+                "GET /api/users/:id": "View a specific user (protected)",
+                "PUT /api/users/:id": "Update a user (protected)",
+                "DELETE /api/users/:id": "Delete a user (protected)",
+                "GET /api/users/me/token-balance": "Get authenticated user's usage information (daily free requests, subscription status)",
+                "GET /api/users/subscriptions": "Get all available subscription plans",
+                "PUT /api/users/:id/subscribe": "Subscribe user to a plan"
             },
             "languages": ["English", "Bhojpuri"],
-            "origin": "Bihar, India"
+            "origin": "Bihar, India",
+            "features": [
+                "Advanced conversation history management",
+                "Real-time streaming chat",
+                "Bhojpuri language expertise",
+                "A4F API integration - advanced AI models",
+                "Secure user authentication",
+                "Conversation statistics and analysis"
+            ]
         }
         ```
 *   **Error Response**:
@@ -141,7 +172,8 @@ Provides general information about the API and lists all available endpoints.
         ```json
         {
             "success": false,
-            "message": "An unexpected error occurred."
+            "message": "An unexpected error occurred.",
+            "stack": "..."
         }
         ```
 
@@ -156,9 +188,11 @@ A welcoming message from the server.
     *   **Content**:
         ```json
         {
-            "message": "नमस्कार! Welcome to Tatva AI API Server",
+            "message": "Hello! Welcome to Tatva AI API Server",
             "description": "Your bilingual AI assistant from Bihar, India",
-            "documentation": "Visit /api/info for API documentation"
+            "documentation": "Visit /api/info for API documentation",
+            "version": "2.0.0",
+            "greeting": "Hello! How can Tatva assist you today?"
         }
         ```
 *   **Error Response**:
@@ -167,7 +201,8 @@ A welcoming message from the server.
         ```json
         {
             "success": false,
-            "message": "An unexpected error occurred."
+            "message": "An unexpected error occurred.",
+            "stack": "..."
         }
         ```
 
@@ -186,7 +221,8 @@ Creates a new user account.
     {
         "email": "user@example.com",
         "password": "StrongPassword123",
-        "phoneNumber": "+919876543210"
+        "phoneNumber": "+919876543210",
+        "username": "testuser"
     }
     ```
 *   **Success Response**:
@@ -196,31 +232,34 @@ Creates a new user account.
         {
             "success": true,
             "message": "User registered successfully.",
-            "data": {
-                "_id": "65c7b1a2b3c4d5e6f7a8b9c0",
+            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            "user": {
+                "id": "65c7b1a2b3c4d5e6f7a8b9c0",
                 "email": "user@example.com",
+                "username": "testuser",
                 "phoneNumber": "+919876543210",
-                "createdAt": "2025-01-01T12:00:00.000Z",
-                "updatedAt": "2025-01-01T12:00:00.000Z",
-                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                "dailyRequestsRemaining": 5,
+                "lastRequestDate": "2025-01-01T12:00:00.000Z",
+                "hasActiveSubscription": false,
+                "subscriptionPlan": "none"
             }
         }
         ```
 *   **Error Response**:
-    *   **Code**: `400 Bad Request` (e.g., missing fields, invalid email)
+    *   **Code**: `400 Bad Request` (e.g., missing fields)
     *   **Content**:
         ```json
         {
             "success": false,
-            "message": "Please enter all fields."
+            "message": "Please enter all required fields: email, password, phone number, and username."
         }
         ```
-    *   **Code**: `409 Conflict` (e.g., email or phone number already exists)
+    *   **Code**: `409 Conflict` (e.g., email, phone number, or username already exists)
     *   **Content**:
         ```json
         {
             "success": false,
-            "message": "User with this email or phone number already exists."
+            "message": "User with this email already exists."
         }
         ```
 
@@ -244,13 +283,16 @@ Authenticates a user and returns a JWT token.
         {
             "success": true,
             "message": "Logged in successfully.",
-            "data": {
-                "_id": "65c7b1a2b3c4d5e6f7a8b9c0",
+            "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...",
+            "user": {
+                "id": "65c7b1a2b3c4d5e6f7a8b9c0",
                 "email": "user@example.com",
+                "username": "testuser",
                 "phoneNumber": "+919876543210",
-                "createdAt": "2025-01-01T12:00:00.000Z",
-                "updatedAt": "2025-01-01T12:00:00.000Z",
-                "token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+                "dailyRequestsRemaining": 4,
+                "lastRequestDate": "2025-01-01T12:00:00.000Z",
+                "hasActiveSubscription": false,
+                "subscriptionPlan": "none"
             }
         }
         ```
@@ -260,7 +302,7 @@ Authenticates a user and returns a JWT token.
         ```json
         {
             "success": false,
-            "message": "Please enter all fields."
+            "message": "Please enter both email and password."
         }
         ```
     *   **Code**: `401 Unauthorized` (e.g., invalid credentials)
@@ -296,14 +338,14 @@ Adds a new AI model to the system.
     *   **Content**:
         ```json
         {
-            "success": true,
-            "message": "AI Model created successfully.",
-            "data": {
+            "message": "AI Model created successfully",
+            "model": {
                 "_id": "65c7b1a2b3c4d5e6f7a8b9c1",
                 "name": "Bhojpuri Translator Model",
                 "modelIdentifier": "bhojpuri-translator-v1",
                 "createdAt": "2025-01-01T12:05:00.000Z",
-                "updatedAt": "2025-01-01T12:05:00.000Z"
+                "updatedAt": "2025-01-01T12:05:00.000Z",
+                "__v": 0
             }
         }
         ```
@@ -312,7 +354,6 @@ Adds a new AI model to the system.
     *   **Content**:
         ```json
         {
-            "success": false,
             "message": "Not authorized, token failed."
         }
         ```
@@ -320,16 +361,14 @@ Adds a new AI model to the system.
     *   **Content**:
         ```json
         {
-            "success": false,
-            "message": "Please provide name and modelIdentifier."
+            "message": "Name and modelIdentifier are required."
         }
         ```
     *   **Code**: `409 Conflict` (e.g., modelIdentifier already exists)
     *   **Content**:
         ```json
         {
-            "success": false,
-            "message": "AI Model with this identifier already exists."
+            "message": "AI Model with this name or modelIdentifier already exists."
         }
         ```
 
@@ -343,33 +382,30 @@ Retrieves a list of all registered AI models.
     *   **Code**: `200 OK`
     *   **Content**:
         ```json
-        {
-            "success": true,
-            "count": 2,
-            "data": [
-                {
-                    "_id": "65c7b1a2b3c4d5e6f7a8b9c1",
-                    "name": "Bhojpuri Translator Model",
-                    "modelIdentifier": "bhojpuri-translator-v1",
-                    "createdAt": "2025-01-01T12:05:00.000Z",
-                    "updatedAt": "2025-01-01T12:05:00.000Z"
-                },
-                {
-                    "_id": "65c7b1a2b3c4d5e6f7a8b9c2",
-                    "name": "English Chatbot Model",
-                    "modelIdentifier": "english-chatbot-v2",
-                    "createdAt": "2025-01-01T12:10:00.000Z",
-                    "updatedAt": "2025-01-01T12:10:00.000Z"
-                }
-            ]
-        }
+        [
+            {
+                "_id": "65c7b1a2b3c4d5e6f7a8b9c1",
+                "name": "Bhojpuri Translator Model",
+                "modelIdentifier": "bhojpuri-translator-v1",
+                "createdAt": "2025-01-01T12:05:00.000Z",
+                "updatedAt": "2025-01-01T12:05:00.000Z",
+                "__v": 0
+            },
+            {
+                "_id": "65c7b1a2b3c4d5e6f7a8b9c2",
+                "name": "English Chatbot Model",
+                "modelIdentifier": "english-chatbot-v2",
+                "createdAt": "2025-01-01T12:10:00.000Z",
+                "updatedAt": "2025-01-01T12:10:00.000Z",
+                "__v": 0
+            }
+        ]
         ```
 *   **Error Response**:
     *   **Code**: `401 Unauthorized`
     *   **Content**:
         ```json
         {
-            "success": false,
             "message": "Not authorized, token failed."
         }
         ```
@@ -387,14 +423,12 @@ Retrieves a single AI model by its unique ID.
     *   **Content**:
         ```json
         {
-            "success": true,
-            "data": {
-                "_id": "65c7b1a2b3c4d5e6f7a8b9c1",
-                "name": "Bhojpuri Translator Model",
-                "modelIdentifier": "bhojpuri-translator-v1",
-                "createdAt": "2025-01-01T12:05:00.000Z",
-                "updatedAt": "2025-01-01T12:05:00.000Z"
-            }
+            "_id": "65c7b1a2b3c4d5e6f7a8b9c1",
+            "name": "Bhojpuri Translator Model",
+            "modelIdentifier": "bhojpuri-translator-v1",
+            "createdAt": "2025-01-01T12:05:00.000Z",
+            "updatedAt": "2025-01-01T12:05:00.000Z",
+            "__v": 0
         }
         ```
 *   **Error Response**:
@@ -402,7 +436,6 @@ Retrieves a single AI model by its unique ID.
     *   **Content**:
         ```json
         {
-            "success": false,
             "message": "Not authorized, token failed."
         }
         ```
@@ -410,7 +443,6 @@ Retrieves a single AI model by its unique ID.
     *   **Content**:
         ```json
         {
-            "success": false,
             "message": "AI Model not found."
         }
         ```
@@ -418,8 +450,7 @@ Retrieves a single AI model by its unique ID.
     *   **Content**:
         ```json
         {
-            "success": false,
-            "message": "Invalid AI Model ID."
+            "message": "Cast to ObjectId failed for value \"invalidid\" at path \"_id\" for model \"AIModel\""
         }
         ```
 
@@ -443,14 +474,14 @@ Updates an existing AI model's details.
     *   **Content**:
         ```json
         {
-            "success": true,
-            "message": "AI Model updated successfully.",
-            "data": {
+            "message": "AI Model updated successfully",
+            "model": {
                 "_id": "65c7b1a2b3c4d5e6f7a8b9c1",
                 "name": "Updated Bhojpuri Translator Model",
                 "modelIdentifier": "bhojpuri-translator-v1-updated",
                 "createdAt": "2025-01-01T12:05:00.000Z",
-                "updatedAt": "2025-01-01T12:15:00.000Z"
+                "updatedAt": "2025-01-01T12:15:00.000Z",
+                "__v": 0
             }
         }
         ```
@@ -459,7 +490,6 @@ Updates an existing AI model's details.
     *   **Content**:
         ```json
         {
-            "success": false,
             "message": "Not authorized, token failed."
         }
         ```
@@ -467,7 +497,6 @@ Updates an existing AI model's details.
     *   **Content**:
         ```json
         {
-            "success": false,
             "message": "AI Model not found."
         }
         ```
@@ -475,8 +504,7 @@ Updates an existing AI model's details.
     *   **Content**:
         ```json
         {
-            "success": false,
-            "message": "AI Model with this identifier already exists."
+            "message": "AI Model with this name or modelIdentifier already exists."
         }
         ```
 
@@ -493,8 +521,7 @@ Removes an AI model from the system.
     *   **Content**:
         ```json
         {
-            "success": true,
-            "message": "AI Model deleted successfully."
+            "message": "AI Model deleted successfully"
         }
         ```
 *   **Error Response**:
@@ -502,7 +529,6 @@ Removes an AI model from the system.
     *   **Content**:
         ```json
         {
-            "success": false,
             "message": "Not authorized, token failed."
         }
         ```
@@ -510,7 +536,6 @@ Removes an AI model from the system.
     *   **Content**:
         ```json
         {
-            "success": false,
             "message": "AI Model not found."
         }
         ```
@@ -538,14 +563,24 @@ Retrieves a list of all registered users (excluding their passwords).
                 {
                     "_id": "65c7b1a2b3c4d5e6f7a8b9c0",
                     "email": "user@example.com",
+                    "username": "testuser",
                     "phoneNumber": "+919876543210",
+                    "dailyRequestsRemaining": 4,
+                    "lastRequestDate": "2025-01-01T12:00:00.000Z",
+                    "hasActiveSubscription": false,
+                    "subscriptionPlan": "none",
                     "createdAt": "2025-01-01T12:00:00.000Z",
                     "updatedAt": "2025-01-01T12:00:00.000Z"
                 },
                 {
                     "_id": "65c7b1a2b3c4d5e6f7a8b9d0",
                     "email": "admin@example.com",
+                    "username": "adminuser",
                     "phoneNumber": "+919988776655",
+                    "dailyRequestsRemaining": 105,
+                    "lastRequestDate": "2025-01-01T12:00:00.000Z",
+                    "hasActiveSubscription": true,
+                    "subscriptionPlan": "premium",
                     "createdAt": "2025-01-01T12:01:00.000Z",
                     "updatedAt": "2025-01-01T12:01:00.000Z"
                 }
@@ -557,7 +592,6 @@ Retrieves a list of all registered users (excluding their passwords).
     *   **Content**:
         ```json
         {
-            "success": false,
             "message": "Not authorized, token failed."
         }
         ```
@@ -579,7 +613,12 @@ Retrieves a single user by their unique ID (excluding their password).
             "data": {
                 "_id": "65c7b1a2b3c4d5e6f7a8b9c0",
                 "email": "user@example.com",
+                "username": "testuser",
                 "phoneNumber": "+919876543210",
+                "dailyRequestsRemaining": 4,
+                "lastRequestDate": "2025-01-01T12:00:00.000Z",
+                "hasActiveSubscription": false,
+                "subscriptionPlan": "none",
                 "createdAt": "2025-01-01T12:00:00.000Z",
                 "updatedAt": "2025-01-01T12:00:00.000Z"
             }
@@ -590,7 +629,6 @@ Retrieves a single user by their unique ID (excluding their password).
     *   **Content**:
         ```json
         {
-            "success": false,
             "message": "Not authorized, token failed."
         }
         ```
@@ -606,8 +644,7 @@ Retrieves a single user by their unique ID (excluding their password).
     *   **Content**:
         ```json
         {
-            "success": false,
-            "message": "Invalid User ID."
+            "message": "Cast to ObjectId failed for value \"invalidid\" at path \"_id\" for model \"User\""
         }
         ```
 
@@ -624,7 +661,11 @@ Updates an existing user's details.
     {
         "email": "updated_user@example.com",
         "phoneNumber": "+919999999999",
-        "password": "NewStrongPassword456"
+        "password": "NewStrongPassword456",
+        "hasActiveSubscription": true,
+        "subscriptionPlan": "premium",
+        "subscriptionEndDate": "2025-02-01T12:00:00.000Z",
+        "bonusRequests": 100
     }
     ```
 *   **Success Response**:
@@ -637,7 +678,13 @@ Updates an existing user's details.
             "data": {
                 "_id": "65c7b1a2b3c4d5e6f7a8b9c0",
                 "email": "updated_user@example.com",
+                "username": "testuser",
                 "phoneNumber": "+919999999999",
+                "dailyRequestsRemaining": 105,
+                "lastRequestDate": "2025-01-01T12:00:00.000Z",
+                "hasActiveSubscription": true,
+                "subscriptionPlan": "premium",
+                "subscriptionEndDate": "2025-02-01T12:00:00.000Z",
                 "createdAt": "2025-01-01T12:00:00.000Z",
                 "updatedAt": "2025-01-01T12:20:00.000Z"
             }
@@ -648,7 +695,6 @@ Updates an existing user's details.
     *   **Content**:
         ```json
         {
-            "success": false,
             "message": "Not authorized, token failed."
         }
         ```
@@ -664,7 +710,6 @@ Updates an existing user's details.
     *   **Content**:
         ```json
         {
-            "success": false,
             "message": "Email or phone number already in use."
         }
         ```
@@ -691,7 +736,6 @@ Removes a user account from the system.
     *   **Content**:
         ```json
         {
-            "success": false,
             "message": "Not authorized, token failed."
         }
         ```
@@ -704,137 +748,327 @@ Removes a user account from the system.
         }
         ```
 
+#### 4.5. Get User Usage Information
+Retrieves the authenticated user's daily request count, last request date, and subscription status.
+
+*   **URL**: `/api/users/me/token-balance`
+*   **Method**: `GET`
+*   **Authentication**: Required (JWT)
+*   **Success Response**:
+    *   **Code**: `200 OK`
+    *   **Content**:
+        ```json
+        {
+            "success": true,
+            "userId": "65c7b1a2b3c4d5e6f7a8b9c0",
+            "username": "testuser",
+            "baseDailyRequests": 5,
+            "bonusRequests": 0,
+            "dailyRequestsRemaining": 4,
+            "lastRequestDate": "2025-01-01T12:00:00.000Z",
+            "hasActiveSubscription": false,
+            "subscriptionPlan": "none",
+            "subscriptionEndDate": null
+        }
+        ```
+*   **Error Response**:
+    *   **Code**: `401 Unauthorized`
+    *   **Content**:
+        ```json
+        {
+            "success": false,
+            "message": "Not authorized, no token"
+        }
+        ```
+
+#### 4.6. Get All Available Subscription Plans
+Retrieves a list of all subscription plans offered by the service.
+
+*   **URL**: `/api/users/subscriptions`
+*   **Method**: `GET`
+*   **Authentication**: Required (JWT)
+*   **Success Response**:
+    *   **Code**: `200 OK`
+    *   **Content**:
+        ```json
+        {
+            "success": true,
+            "plans": [
+                {
+                    "planType": "basic",
+                    "name": "Basic Plan",
+                    "price": 199,
+                    "bonusRequests": 50,
+                    "durationMonths": 1,
+                    "description": "Get 50 extra requests per day for one month."
+                },
+                {
+                    "planType": "premium",
+                    "name": "Premium Plan",
+                    "price": 399,
+                    "bonusRequests": 100,
+                    "durationMonths": 1,
+                    "description": "Get 100 extra requests per day for one month."
+                },
+                {
+                    "planType": "unlimited",
+                    "name": "Unlimited Plan",
+                    "price": 599,
+                    "bonusRequests": 0,
+                    "durationMonths": null,
+                    "description": "Enjoy unlimited requests with no daily limits."
+                },
+                {
+                    "planType": "none",
+                    "name": "Free Tier",
+                    "price": 0,
+                    "bonusRequests": 0,
+                    "durationMonths": null,
+                    "description": "Default free access with 5 daily requests."
+                }
+            ]
+        }
+        ```
+*   **Error Response**:
+    *   **Code**: `401 Unauthorized`
+    *   **Content**:
+        ```json
+        {
+            "message": "Not authorized, token failed."
+        }
+        ```
+
+#### 4.7. Subscribe User to a Plan
+Allows an authenticated user to subscribe to a specified plan. This will update their request limits and subscription status.
+
+*   **URL**: `/api/users/:id/subscribe`
+*   **Method**: `PUT`
+*   **Authentication**: Required (JWT)
+*   **Path Parameters**:
+    *   `id`: The unique ID of the user to subscribe (e.g., `65c7b1a2b3c4d5e6f7a8b9c0`)
+*   **Request Body**:
+    ```json
+    {
+        "planType": "premium"
+    }
+    ```
+    *   `planType` (string, required): The type of plan to subscribe to (`basic`, `premium`, `unlimited`, or `none` to cancel).
+*   **Success Response**:
+    *   **Code**: `200 OK`
+    *   **Content**:
+        ```json
+        {
+            "success": true,
+            "message": "Premium Plan activated successfully! Get 100 extra requests per day for one month.",
+            "data": {
+                "id": "65c7b1a2b3c4d5e6f7a8b9c0",
+                "email": "user@example.com",
+                "username": "testuser",
+                "baseDailyRequests": 5,
+                "bonusRequests": 100,
+                "dailyRequestsRemaining": 105,
+                "hasActiveSubscription": true,
+                "subscriptionPlan": "premium",
+                "subscriptionEndDate": "2025-02-01T12:00:00.000Z"
+            }
+        }
+        ```
+*   **Error Response**:
+    *   **Code**: `401 Unauthorized`
+    *   **Content**:
+        ```json
+        {
+            "message": "Not authorized, token failed."
+        }
+        ```
+    *   **Code**: `404 Not Found`
+    *   **Content**:
+        ```json
+        {
+            "success": false,
+            "message": "User not found."
+        }
+        ```
+    *   **Code**: `400 Bad Request`
+    *   **Content**:
+        ```json
+        {
+            "success": false,
+            "message": "Invalid plan type provided."
+        }
+        ```
+
 ---
 
 ### 5. Chat Endpoints
 
-#### 5.1. Main Chat Endpoint
-Engages in a conversation with the AI, supporting conversation history.
+#### 5.1. Get All Conversations
+Retrieves a list of all chat conversations for the authenticated user.
 
-*   **URL**: `/api/chat`
-*   **Method**: `POST`
-*   **Authentication**: None (can be protected if needed)
-*   **Request Body**:
-    ```json
-    {
-        "message": "Hello, how are you?",
-        "conversationId": "optional-existing-conversation-id",
-        "modelIdentifier": "optional-model-identifier-like-bhojpuri-translator-v1"
-    }
-    ```
+*   **URL**: `/api/chat/history`
+*   **Method**: `GET`
+*   **Authentication**: Required (JWT)
 *   **Success Response**:
     *   **Code**: `200 OK`
     *   **Content**:
         ```json
         {
-            "conversationId": "new-or-existing-conversation-id",
-            "response": "I am doing well, thank you for asking! How can I assist you today?",
-            "timestamp": "2025-01-01T12:30:00.000Z"
+            "success": true,
+            "conversations": [
+                {
+                    "conversationId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+                    "title": "Discussion about AI models",
+                    "createdAt": "2025-01-01T12:30:00.000Z",
+                    "updatedAt": "2025-01-01T12:45:00.000Z"
+                },
+                {
+                    "conversationId": "b2c3d4e5-f6a7-8901-2345-67890abcdef0",
+                    "title": "Learning Bhojpuri phrases",
+                    "createdAt": "2025-01-01T11:00:00.000Z",
+                    "updatedAt": "2025-01-01T11:15:00.000Z"
+                }
+            ]
         }
         ```
 *   **Error Response**:
-    *   **Code**: `400 Bad Request`
+    *   **Code**: `401 Unauthorized`
     *   **Content**:
         ```json
         {
-            "success": false,
-            "message": "Message is required."
-        }
-        ```
-    *   **Code**: `500 Internal Server Error`
-    *   **Content**:
-        ```json
-        {
-            "success": false,
-            "message": "Failed to process chat request."
+            "message": "Not authorized, token failed."
         }
         ```
 
-#### 5.2. Streaming Chat Endpoint
-Provides real-time, streaming responses from the AI.
+#### 5.2. Get Conversation by ID
+Retrieves a specific chat conversation by its ID for the authenticated user.
 
-*   **URL**: `/api/chat/stream`
-*   **Method**: `POST`
-*   **Authentication**: None (can be protected if needed)
-*   **Request Body**:
-    ```json
-    {
-        "message": "Tell me a story about a brave warrior.",
-        "conversationId": "optional-existing-conversation-id",
-        "modelIdentifier": "optional-model-identifier-like-english-chatbot-v2"
-    }
-    ```
-*   **Success Response**:
-    *   **Code**: `200 OK`
-    *   **Content**: (Server-Sent Events - SSE stream)
-        ```
-        data: {"chunk": "Once upon a time,"}
-
-        data: {"chunk": " in a land far away,"}
-
-        data: {"chunk": " lived a brave warrior..."}
-
-        data: {"end": true, "conversationId": "new-or-existing-conversation-id"}
-        ```
-*   **Error Response**:
-    *   **Code**: `400 Bad Request`
-    *   **Content**:
-        ```json
-        {
-            "success": false,
-            "message": "Message is required."
-        }
-        ```
-    *   **Code**: `500 Internal Server Error`
-    *   **Content**:
-        ```json
-        {
-            "success": false,
-            "message": "Failed to establish streaming chat."
-        }
-        ```
-
-#### 5.3. Simple Chat Endpoint
-A basic, stateless chat endpoint for quick interactions without conversation history.
-
-*   **URL**: `/api/simple-chat`
-*   **Method**: `POST`
-*   **Authentication**: None (can be protected if needed)
-*   **Request Body**:
-    ```json
-    {
-        "message": "What is the capital of India?",
-        "modelIdentifier": "optional-model-identifier-like-english-chatbot-v2"
-    }
-    ```
+*   **URL**: `/api/chat/history/:conversationId`
+*   **Method**: `GET`
+*   **Authentication**: Required (JWT)
+*   **Path Parameters**:
+    *   `conversationId`: The unique ID of the conversation (e.g., `a1b2c3d4-e5f6-7890-1234-567890abcdef`)
 *   **Success Response**:
     *   **Code**: `200 OK`
     *   **Content**:
         ```json
         {
-            "response": "The capital of India is New Delhi."
+            "success": true,
+            "conversation": {
+                "_id": "65c7b1a2b3c4d5e6f7a8b9c0",
+                "userId": "65c7b1a2b3c4d5e6f7a8b9c0",
+                "conversationId": "a1b2c3d4-e5f6-7890-1234-567890abcdef",
+                "title": "Discussion about AI models",
+                "summary": "Short conversation",
+                "tags": [],
+                "language": "english",
+                "isActive": true,
+                "totalMessages": 2,
+                "totalTokens": 150,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": "What are the latest advancements in AI?",
+                        "timestamp": "2025-01-01T12:30:00.000Z"
+                    },
+                    {
+                        "role": "assistant",
+                        "content": "Tatva: The latest advancements in AI include large language models like GPT-4, advancements in generative AI for images and video, and improved AI ethics frameworks. Is there a specific area you'd like to know more about?",
+                        "metadata": {
+                            "tokens": 100,
+                            "processingTime": 500,
+                            "model": "provider-1/chatgpt-4o-latest"
+                        },
+                        "timestamp": "2025-01-01T12:30:05.000Z"
+                    }
+                ],
+                "createdAt": "2025-01-01T12:30:00.000Z",
+                "updatedAt": "2025-01-01T12:30:05.000Z",
+                "lastActivity": "2025-01-01T12:30:05.000Z",
+                "__v": 0
+            }
         }
         ```
 *   **Error Response**:
-    *   **Code**: `400 Bad Request`
+    *   **Code**: `401 Unauthorized`
     *   **Content**:
         ```json
         {
-            "success": false,
-            "message": "Message is required."
+            "message": "Not authorized, token failed."
         }
         ```
-    *   **Code**: `500 Internal Server Error`
+    *   **Code**: `404 Not Found`
     *   **Content**:
         ```json
         {
             "success": false,
-            "message": "Failed to process simple chat request."
+            "message": "Conversation not found or does not belong to the authenticated user."
         }
         ```
 
-#### 5.4. A4F Chat Endpoint
-Engages in a conversation using A4F API with advanced AI models, supporting conversation history.
+#### 5.3. Delete Conversation by ID
+Deletes a specific chat conversation for the authenticated user.
+
+*   **URL**: `/api/chat/history/:conversationId`
+*   **Method**: `DELETE`
+*   **Authentication**: Required (JWT)
+*   **Path Parameters**:
+    *   `conversationId`: The unique ID of the conversation (e.g., `a1b2c3d4-e5f6-7890-1234-567890abcdef`)
+*   **Success Response**:
+    *   **Code**: `200 OK`
+    *   **Content**:
+        ```json
+        {
+            "success": true,
+            "message": "Conversation deleted successfully"
+        }
+        ```
+*   **Error Response**:
+    *   **Code**: `401 Unauthorized`
+    *   **Content**:
+        ```json
+        {
+            "message": "Not authorized, token failed."
+        }
+        ```
+    *   **Code**: `404 Not Found`
+    *   **Content**:
+        ```json
+        {
+            "success": false,
+            "message": "Conversation not found or does not belong to the authenticated user."
+        }
+        ```
+
+#### 5.4. Get Conversation Statistics
+Retrieves statistics about the authenticated user's conversations.
+
+*   **URL**: `/api/chat/stats`
+*   **Method**: `GET`
+*   **Authentication**: Required (JWT)
+*   **Success Response**:
+    *   **Code**: `200 OK`
+    *   **Content**:
+        ```json
+        {
+            "success": true,
+            "stats": {
+                "totalConversations": 5,
+                "totalMessages": 25,
+                "totalTokens": 1200
+            }
+        }
+        ```
+*   **Error Response**:
+    *   **Code**: `401 Unauthorized`
+    *   **Content**:
+        ```json
+        {
+            "message": "Not authorized, token failed."
+        }
+        ```
+
+#### 5.5. A4F Chat Endpoint
+Engages in a conversation with the AI using A4F models, supporting conversation history and web search.
 
 *   **URL**: `/api/a4f-chat`
 *   **Method**: `POST`
@@ -842,25 +1076,44 @@ Engages in a conversation using A4F API with advanced AI models, supporting conv
 *   **Request Body**:
     ```json
     {
-        "prompt": "Hello, how are you?",
+        "prompt": "What is the capital of France?",
         "conversationId": "optional-existing-conversation-id",
-        "model": "provider-1/chatgpt-4o-latest"
+        "model": "optional-model-identifier-like-provider-1/chatgpt-4o-latest",
+        "webSearch": true
     }
     ```
+    *   `prompt` (string, required): The user's message.
+    *   `conversationId` (string, optional): If provided, the message will be added to this existing conversation. Otherwise, a new conversation is created.
+    *   `model` (string, optional): The specific A4F model to use. Defaults to `provider-1/chatgpt-4o-latest`.
+    *   `webSearch` (boolean, optional): Set to `true` to force a web search. Web search is also auto-enabled for certain types of queries.
 *   **Success Response**:
     *   **Code**: `200 OK`
     *   **Content**:
         ```json
         {
             "success": true,
-            "response": "I am doing well, thank you for asking! How can I assist you today?",
-            "conversationId": "conversation-id",
-            "title": "Generated conversation title",
+            "response": "Tatva: The capital of France is Paris. Is there anything else you'd like to know about France?",
+            "conversationId": "new-or-existing-conversation-id",
+            "title": "Capital of France",
             "provider": "A4F",
-            "model": "provider-1/chatgpt-4o-latest"
+            "model": "provider-1/chatgpt-4o-latest",
+            "webSearchEnabled": true,
+            "tokensUsed": 75,
+            "dailyRequestsRemaining": 3,
+            "hasActiveSubscription": false,
+            "subscriptionPlan": "none"
         }
         ```
-*   **Error Response**:
+*   **Error Response (Limit Reached)**:
+    *   **Code**: `403 Forbidden`
+    *   **Content**:
+        ```json
+        {
+            "success": false,
+            "message": "Your daily request limit has been exhausted. Please consider purchasing a subscription plan for continued access."
+        }
+        ```
+*   **Error Response (Other)**:
     *   **Code**: `400 Bad Request`
     *   **Content**:
         ```json
@@ -869,9 +1122,26 @@ Engages in a conversation using A4F API with advanced AI models, supporting conv
             "error": "Prompt is required and must be a string"
         }
         ```
+    *   **Code**: `404 Not Found`
+    *   **Content**:
+        ```json
+        {
+            "success": false,
+            "message": "Conversation not found or does not belong to the authenticated user."
+        }
+        ```
+    *   **Code**: `500 Internal Server Error`
+    *   **Content**:
+        ```json
+        {
+            "success": false,
+            "error": "Failed to get response from A4F API",
+            "message": "..."
+        }
+        ```
 
-#### 5.5. A4F Streaming Chat Endpoint
-Provides real-time, streaming responses using A4F API.
+#### 5.6. A4F Streaming Chat Endpoint
+Provides real-time, streaming responses using A4F models, supporting conversation history and web search.
 
 *   **URL**: `/api/a4f-chat/stream`
 *   **Method**: `POST`
@@ -879,22 +1149,50 @@ Provides real-time, streaming responses using A4F API.
 *   **Request Body**:
     ```json
     {
-        "prompt": "Tell me a story about a friendly robot.",
+        "prompt": "Tell me a short story about a friendly robot.",
         "conversationId": "optional-existing-conversation-id",
-        "model": "provider-1/chatgpt-4o-latest"
+        "model": "optional-model-identifier-like-provider-1/chatgpt-4o-latest",
+        "webSearch": false
     }
     ```
+    *   `prompt` (string, required): The user's message.
+    *   `conversationId` (string, optional): If provided, the message will be added to this existing conversation. Otherwise, a new conversation is created.
+    *   `model` (string, optional): The specific A4F model to use. Defaults to `provider-1/chatgpt-4o-latest`.
+    *   `webSearch` (boolean, optional): Set to `true` to force a web search. Web search is also auto-enabled for certain types of queries.
 *   **Success Response**:
     *   **Code**: `200 OK`
     *   **Content**: (Server-Sent Events - SSE stream)
         ```
-        data: {"success": true, "conversationId": "...", "title": "...", "provider": "A4F", "initial": true}
+        data: {"success": true, "conversationId": "new-or-existing-conversation-id", "title": "Friendly Robot Story", "provider": "A4F", "model": "provider-1/chatgpt-4o-latest", "webSearchEnabled": false, "initial": true, "dailyRequestsRemaining": 3, "hasActiveSubscription": false, "subscriptionPlan": "none"}
 
-        data: {"success": true, "response": "Once upon a time,", "done": false}
+        data: {"success": true, "response": "Tatva: Once upon a time,", "done": false}
 
-        data: {"success": true, "response": " there was a friendly robot...", "done": false}
+        data: {"success": true, "response": " in a bustling city,", "done": false}
 
-        data: {"success": true, "response": "", "done": true, "fullResponse": "...", "conversationId": "..."}
+        data: {"success": true, "response": " lived a friendly robot named Bolt.", "done": false}
+
+        data: {"success": true, "response": "", "done": true, "fullResponse": "Tatva: Once upon a time, in a bustling city, lived a friendly robot named Bolt.", "conversationId": "new-or-existing-conversation-id", "title": "Friendly Robot Story", "tokensUsed": 120, "dailyRequestsRemaining": 3, "hasActiveSubscription": false, "subscriptionPlan": "none"}
+        ```
+*   **Error Response (Limit Reached)**:
+    *   **Code**: `200 OK` (but with error data in stream)
+    *   **Content**: (Server-Sent Events - SSE stream)
+        ```
+        data: {"success": false, "error": "Your daily request limit has been exhausted. Please consider purchasing a subscription plan for continued access.", "done": true}
+        ```
+*   **Error Response (Other)**:
+    *   **Code**: `200 OK` (but with error data in stream)
+    *   **Content**: (Server-Sent Events - SSE stream)
+        ```
+        data: {"success": false, "error": "Prompt is required and must be a string", "done": true}
+        ```
+    *   **Code**: `500 Internal Server Error` (if headers not sent yet)
+    *   **Content**:
+        ```json
+        {
+            "success": false,
+            "error": "Failed to get response from A4F API",
+            "message": "..."
+        }
         ```
 
 ---
@@ -906,6 +1204,3 @@ Feel free to fork the repository, open issues, and submit pull requests.
 ## 📄 License
 
 This project is licensed under the MIT License.
-
----
-#

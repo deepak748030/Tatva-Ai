@@ -18,17 +18,17 @@ class AuthController {
         // --- DIAGNOSTIC LOGS END ---
 
         try {
-            const { email, password, phoneNumber } = req.body;
+            const { email, password, phoneNumber, username } = req.body; // MODIFIED: Added username
 
             // Basic validation
-            if (!email || !password || !phoneNumber) {
+            if (!email || !password || !phoneNumber || !username) { // MODIFIED: Added username to validation
                 return res.status(400).json({
                     success: false,
-                    message: 'Please enter all required fields: email, password, and phone number.'
+                    message: 'Please enter all required fields: email, password, phone number, and username.'
                 });
             }
 
-            // Check if user already exists by email or phone number
+            // Check if user already exists by email, phone number, or username
             const existingUserByEmail = await User.findOne({ email });
             if (existingUserByEmail) {
                 return res.status(409).json({
@@ -45,10 +45,19 @@ class AuthController {
                 });
             }
 
+            const existingUserByUsername = await User.findOne({ username }); // NEW: Check for existing username
+            if (existingUserByUsername) {
+                return res.status(409).json({
+                    success: false,
+                    message: 'User with this username already exists.'
+                });
+            }
+
             const user = await User.create({
                 email,
                 password,
-                phoneNumber
+                phoneNumber,
+                username // MODIFIED: Added username
             });
 
             // Generate token and send response
@@ -59,7 +68,11 @@ class AuthController {
                 user: {
                     id: user._id,
                     email: user.email,
-                    phoneNumber: user.phoneNumber
+                    username: user.username, // MODIFIED: Added username
+                    phoneNumber: user.phoneNumber,
+                    dailyFreeRequests: user.dailyFreeRequests, // MODIFIED: Include dailyFreeRequests
+                    lastRequestDate: user.lastRequestDate,     // MODIFIED: Include lastRequestDate
+                    hasActiveSubscription: user.hasActiveSubscription // MODIFIED: Include hasActiveSubscription
                 }
             });
 
@@ -109,7 +122,11 @@ class AuthController {
                 user: {
                     id: user._id,
                     email: user.email,
-                    phoneNumber: user.phoneNumber
+                    username: user.username, // NEW: Include username
+                    phoneNumber: user.phoneNumber,
+                    dailyFreeRequests: user.dailyFreeRequests, // MODIFIED: Include dailyFreeRequests
+                    lastRequestDate: user.lastRequestDate,     // MODIFIED: Include lastRequestDate
+                    hasActiveSubscription: user.hasActiveSubscription // MODIFIED: Include hasActiveSubscription
                 }
             });
 
@@ -121,3 +138,4 @@ class AuthController {
 }
 
 module.exports = AuthController;
+

@@ -1,8 +1,6 @@
-// const fetch = require('node-fetch'); // REMOVE THIS LINE
-
 class WebSearchService {
     constructor() {
-        // Only using DuckDuckGo for search as requested
+        // Only using DuckDuckGo for search
         this.SEARCH_RESULTS_LIMIT = 5;
         this.MAX_SNIPPET_LENGTH = 300;
         this.TIMEOUT = 10000;
@@ -18,44 +16,35 @@ class WebSearchService {
 
         const lowerPrompt = prompt.toLowerCase();
 
-        // Specific handling for date, day, and weather queries
-        if (lowerPrompt.includes('आज') && (lowerPrompt.includes('तारीख') || lowerPrompt.includes('दिनांक'))) {
-            console.log(`[WebSearch] Detected date query, setting search query to "current date today"`);
-            return "current date today"; // More explicit for search engines
-        }
-        if (lowerPrompt.includes('आज') && (lowerPrompt.includes('दिन') || lowerPrompt.includes('वार'))) {
-            console.log(`[WebSearch] Detected day query, setting search query to "current day of the week today"`);
-            return "current day of the week today"; // More explicit
-        }
-        if (lowerPrompt.includes('आज') && lowerPrompt.includes('मौसम')) {
-            console.log(`[WebSearch] Detected weather query, setting search query to "आज का मौसम"`);
-            return "आज का मौसम"; // This is likely good enough for weather
-        }
-        // General English queries for date/time/weather
+        // Specific handling for date, day, and weather queries in English
         if (lowerPrompt.includes('current date') || lowerPrompt.includes('what is the date')) {
+            console.log(`[WebSearch] Detected date query, setting search query to "current date today"`);
             return "current date today";
         }
-        if (lowerPrompt.includes('current time') || lowerPrompt.includes('what is the time')) {
-            return "current time now";
+        if (lowerPrompt.includes('current day') || lowerPrompt.includes('what day is it')) {
+            console.log(`[WebSearch] Detected day query, setting search query to "current day of the week today"`);
+            return "current day of the week today";
         }
         if (lowerPrompt.includes('current weather') || lowerPrompt.includes('what is the weather')) {
+            console.log(`[WebSearch] Detected weather query, setting search query to "current weather"`);
             return "current weather";
         }
+        if (lowerPrompt.includes('current time') || lowerPrompt.includes('what is the time')) {
+            console.log(`[WebSearch] Detected time query, setting search query to "current time now"`);
+            return "current time now";
+        }
 
-
-        // Remove common Bhojpuri/Hindi stop words and extract meaningful keywords
+        // Remove common English stop words and extract meaningful keywords
         const stopWords = [
-            'का', 'के', 'की', 'में', 'से', 'पर', 'को', 'है', 'हैं', 'था', 'थे', 'बा', 'बाड़ऽ',
-            'हम', 'तू', 'रउआ', 'इ', 'ओ', 'एगो', 'दू', 'तीन', 'कइसे', 'कहाँ', 'कब', 'क्यों',
             'the', 'is', 'are', 'was', 'were', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at',
             'to', 'for', 'of', 'with', 'by', 'from', 'about', 'what', 'how', 'when', 'where', 'why',
             'tell', 'me', 'please', 'can', 'you', 'would', 'could', 'should', 'will', 'shall'
         ];
 
-        // Clean and tokenize the prompt
+        // Clean and tokenize the prompt (only alphanumeric characters and spaces)
         let cleanedPrompt = prompt
             .toLowerCase()
-            .replace(/[^\w\s\u0900-\u097F]/g, ' ') // Keep alphanumeric and Devanagari characters
+            .replace(/[^\w\s]/g, ' ') // Keep alphanumeric characters
             .replace(/\s+/g, ' ')
             .trim();
 
@@ -90,7 +79,7 @@ class WebSearchService {
             const searchUrl = `https://api.duckduckgo.com/?q=${encodeURIComponent(query)}&format=json&no_html=1&skip_disambig=1`;
             console.log(`[WebSearch] DuckDuckGo URL: ${searchUrl}`);
 
-            const response = await fetch(searchUrl, { // This fetch will now use the global fetch
+            const response = await fetch(searchUrl, { // Using global fetch
                 method: 'GET',
                 headers: {
                     'User-Agent': 'TatvaAI/2.0 (https://tatva.ai)'
@@ -101,7 +90,7 @@ class WebSearchService {
             console.log(`[WebSearch] DuckDuckGo response status: ${response.status}`);
 
             if (!response.ok) {
-                throw new Error(`DuckDuckGo API returned status: ${response.status}`);
+                throw new Error(`DuckDuckGo API returned status: ${response.status} - ${response.statusText}`);
             }
 
             const data = await response.json();
@@ -133,7 +122,7 @@ class WebSearchService {
             if (data.Abstract && data.Abstract.trim()) {
                 const abstractResult = {
                     type: 'abstract',
-                    title: data.Heading || 'मुख्य जानकारी',
+                    title: data.Heading || 'Main Information',
                     content: data.Abstract.slice(0, this.MAX_SNIPPET_LENGTH),
                     source: data.AbstractSource || 'DuckDuckGo',
                     url: data.AbstractURL || '',
@@ -148,7 +137,7 @@ class WebSearchService {
             if (data.Definition && data.Definition.trim()) {
                 const definitionResult = {
                     type: 'definition',
-                    title: 'परिभाषा',
+                    title: 'Definition',
                     content: data.Definition.slice(0, this.MAX_SNIPPET_LENGTH),
                     source: data.DefinitionSource || 'Dictionary',
                     url: data.DefinitionURL || '',
@@ -163,7 +152,7 @@ class WebSearchService {
             if (data.Answer && data.Answer.trim()) {
                 const answerResult = {
                     type: 'answer',
-                    title: 'सीधा उत्तर',
+                    title: 'Direct Answer',
                     content: data.Answer.slice(0, this.MAX_SNIPPET_LENGTH),
                     source: data.AnswerType || 'Calculation',
                     url: '',
@@ -180,7 +169,7 @@ class WebSearchService {
                     if (topic.Text && topic.Text.trim()) {
                         const relatedResult = {
                             type: 'related',
-                            title: `संबंधित विषय ${index + 1}`,
+                            title: `Related Topic ${index + 1}`,
                             content: topic.Text.slice(0, this.MAX_SNIPPET_LENGTH),
                             source: 'DuckDuckGo',
                             url: topic.FirstURL || '',
@@ -227,35 +216,35 @@ class WebSearchService {
 
         console.log(`[WebSearch] Creating search context with ${searchResults.results.length} results`);
 
-        let context = `\n\n🔍 ताज़ा वेब खोज के परिणाम (${new Date().toLocaleString('hi-IN')} पर खोजा गया):\n`;
-        context += `खोज प्रश्न: "${searchResults.query}"\n`;
-        context += `स्रोत: ${searchResults.source}\n\n`;
+        let context = `\n\n🔍 Latest Web Search Results (searched on ${new Date().toLocaleString('en-US')}):\n`;
+        context += `Search Query: "${searchResults.query}"\n`;
+        context += `Source: ${searchResults.source}\n\n`;
 
         // Special handling for date/time/day queries to ensure the AI prioritizes it
         const lowerQuery = searchResults.query.toLowerCase();
-        if (lowerQuery.includes('current date') || lowerQuery.includes('current day') || lowerQuery.includes('current time') || lowerQuery.includes('आज की तारीख') || lowerQuery.includes('आज का दिन')) {
-            context += `!!! यह एक तारीख/समय/दिन से संबंधित प्रश्न है। कृपया नीचे दिए गए खोज परिणामों से सबसे सटीक और वर्तमान जानकारी निकालें और उसका उपयोग करें। !!!\n\n`;
+        if (lowerQuery.includes('current date') || lowerQuery.includes('current day') || lowerQuery.includes('current time')) {
+            context += `!!! This is a date/time/day related query. Please extract the most accurate and current information from the search results below and use it. !!!\n\n`;
         }
 
 
         searchResults.results.forEach((result, index) => {
             context += `${index + 1}. ${result.title}\n`;
             context += `   ${result.content}\n`;
-            context += `   स्रोत: ${result.source}\n`;
+            context += `   Source: ${result.source}\n`;
             if (result.publishedDate && result.publishedDate !== 'Recent') {
-                context += `   प्रकाशन तिथि: ${result.publishedDate}\n`;
+                context += `   Published Date: ${result.publishedDate}\n`;
             }
             if (result.url) {
-                context += `   लिंक: ${result.url}\n`;
+                context += `   Link: ${result.url}\n`;
             }
-            context += `   खोज इंजन: ${result.engine}\n\n`;
+            context += `   Search Engine: ${result.engine}\n\n`;
         });
 
-        context += `📌 महत्वपूर्ण निर्देश:\n`;
-        context += `- इन ताज़ा खोज परिणामों का उपयोग करके भोजपुरी में उत्तर दें\n`;
-        context += `- यदि खोज परिणाम प्रासंगिक हैं तो उनकी जानकारी को प्राथमिकता दें\n`;
-        context += `- खोज परिणामों में दी गई तारीखों और तथ्यों का उल्लेख करें\n`;
-        context += `- यदि कोई नवीन जानकारी मिली है तो उसे स्पष्ट रूप से बताएं\n\n`;
+        context += `📌 Important Instructions:\n`;
+        context += `- Use these latest search results to answer in English.\n`;
+        context += `- Prioritize information from relevant search results.\n`;
+        context += `- Mention dates and facts provided in the search results.\n`;
+        context += `- Clearly state if new information was found.\n\n`;
 
         console.log(`[WebSearch] Created search context (${context.length} characters):`, context);
         return context;
@@ -281,9 +270,75 @@ class WebSearchService {
 
             console.log(`[WebSearch] Final search query: "${searchQuery}"`);
 
-            // Directly call DuckDuckGo search
-            console.log('[WebSearch] Attempting DuckDuckGo search...');
-            let searchResults = await this.searchDuckDuckGo(searchQuery);
+            // NEW: Handle specific date/time/day queries internally
+            const now = new Date();
+            let internalResult = null;
+
+            if (searchQuery === "current date today") {
+                const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+                internalResult = {
+                    success: true,
+                    query: searchQuery,
+                    timestamp: now.toISOString(),
+                    results: [{
+                        type: 'internal',
+                        title: 'Current Date',
+                        content: now.toLocaleDateString('en-US', options),
+                        source: 'Internal System',
+                        url: '',
+                        publishedDate: now.toISOString(),
+                        engine: 'Internal'
+                    }],
+                    totalResults: 1,
+                    source: 'Internal System'
+                };
+            } else if (searchQuery === "current day of the week today") {
+                const options = { weekday: 'long' };
+                internalResult = {
+                    success: true,
+                    query: searchQuery,
+                    timestamp: now.toISOString(),
+                    results: [{
+                        type: 'internal',
+                        title: 'Current Day',
+                        content: now.toLocaleDateString('en-US', options),
+                        source: 'Internal System',
+                        url: '',
+                        publishedDate: now.toISOString(),
+                        engine: 'Internal'
+                    }],
+                    totalResults: 1,
+                    source: 'Internal System'
+                };
+            } else if (searchQuery === "current time now") {
+                const options = { hour: 'numeric', minute: 'numeric', second: 'numeric', hour12: true };
+                internalResult = {
+                    success: true,
+                    query: searchQuery,
+                    timestamp: now.toISOString(),
+                    results: [{
+                        type: 'internal',
+                        title: 'Current Time',
+                        content: now.toLocaleTimeString('en-US', options),
+                        source: 'Internal System',
+                        url: '',
+                        publishedDate: now.toISOString(),
+                        engine: 'Internal'
+                    }],
+                    totalResults: 1,
+                    source: 'Internal System'
+                };
+            }
+
+            let searchResults;
+            if (internalResult) {
+                searchResults = internalResult;
+                console.log('[WebSearch] Using internally generated date/time/day.');
+            } else {
+                // Directly call DuckDuckGo search
+                console.log('[WebSearch] Attempting DuckDuckGo search...');
+                searchResults = await this.searchDuckDuckGo(searchQuery);
+            }
 
             console.log(`[WebSearch] Final search results:`, JSON.stringify(searchResults, null, 2));
 
@@ -315,11 +370,7 @@ class WebSearchService {
             'latest', 'recent', 'current', 'today', 'news', 'update', 'now', 'price', 'weather',
             'what is', 'who is', 'when is', 'where is', 'how much', 'current price', 'new',
             'breaking', 'live', 'real time', 'happening', 'trending', '2024', '2025',
-
-            // Bhojpuri/Hindi indicators
-            'ताज़ा', 'नया', 'आज', 'अभी', 'समाचार', 'खबर', 'कीमत', 'मौसम', 'हाल',
-            'का बा', 'कौन बा', 'कब बा', 'कहाँ बा', 'कतना बा', 'कइसन बा', 'नवीन',
-            'ब्रेकिंग', 'लाइव', 'चालू', 'हो रहा', 'ट्रेंडिंग', 'तारीख', 'दिनांक', 'दिन', 'वार' // Added specific keywords
+            'current date', 'current day', 'current time' // Added specific keywords
         ];
 
         const lowerPrompt = prompt.toLowerCase();
@@ -343,3 +394,4 @@ class WebSearchService {
 }
 
 module.exports = WebSearchService;
+
