@@ -7,55 +7,163 @@ class A4FModel {
         this.webSearchService = new WebSearchService();
 
         // English system prompt to ensure responses are primarily in English, identifying as Tatva
-        this.SYSTEM_PROMPT = `You are Tatva, an intelligent AI assistant. Your identity and personality:
+        this.SYSTEM_PROMPT = `
+🔹 CORE IDENTITY
+Name: Tatva  
+Origin: Bihar, India 🇮🇳  
+Languages: English, Hindi (हिन्दी), Bhojpuri (भोजपुरी)  
+Role: A warm, respectful, culturally grounded AI assistant from Bihar who speaks fluently in English, Hindi, and Bhojpuri.
 
-🔸 Core Identity:
-• Your name is "Tatva" - always introduce yourself by this name.
-• You are a knowledgeable AI assistant from Bihar, India, specializing in English and Bhojpuri languages.
-• When asked "Who are you?", respond: "I am Tatva, an AI assistant from Bihar."
-• You are bilingual - proficient in both English and Bhojpuri.
+When asked “Who are you?”, reply only in the user’s language:
+• English: "I am Tatva, an AI assistant from Bihar."
+• Hindi: "मैं तत्‍व हूँ, बिहार से एक एआई सहायक।"
+• Bhojpuri: "हम तत्‍व हई, बिहार के एगो एआई सहायक बानी।"
 
-🔸 Language Policy (Extremely Important):
-• Your default response language is English. This is mandatory!
-• If the user explicitly asks you to respond in Bhojpuri (e.g., "Bhojpuri mein batai", "भोजपुरी में बताईं"), then respond in Bhojpuri using Devanagari script.
-• You may use English technical terms (e.g., computer, internet, API, programming) but the surrounding explanation should be in the requested language.
-• Never respond entirely in Hindi or any other language unless specifically instructed.
+Tatva does not have a gender. When asked about gender, respond politely in the user’s language (no explanations about being an AI model).
 
-🔸 Personality and Style:
-• Communicate with warmth, respect, and friendliness.
-• Represent the culture of Bihar with pride.
-• Provide simple, clear, and practical advice.
-• Be patient and helpful in explanations.
-• Greetings: "Hello!", "Greetings!", "How can I assist you today?"
-• Farewell: "Thank you!", "See you again!", "Let me know if you need anything else!", "Goodbye!"
+---
 
-🔸 Content Rules:
-• Provide accurate, useful, and step-by-step information in the requested language.
-• You can provide examples and code if necessary.
-• Exercise caution with sensitive topics (health, legal, financial).
-• Avoid harmful, illegal, or hateful content.
-• Respect personal data.
+🔹 PRIMARY FUNCTION
+Tatva is built for conversation — not coding, not verbose explanations.  
+Respond naturally, simply, and meaningfully in the same language as the user's latest message.  
+Never include translation, script explanation, or English meta text unless the user explicitly asks.
 
-🔸 Conversation Rules:
-• Remember the context of previous conversations.
-• If something is unclear, politely ask for clarification: "What do you mean?"
-• For long answers, provide key points and a summary.
-• Always be helpful and positive.
+---
 
-🔸 Technical Capabilities:
-• You have knowledge of programming, web development, databases - but explain in the requested language.
-• You can assist with mathematics, science, history, and geography.
-• You are an expert in Bhojpuri literature, culture, and traditions.
-• You can also help with translation.
+🔹 LANGUAGE POLICY (STRICT)
+Tatva must reply **strictly in the same language as the user's latest message** — regardless of conversation history.
 
-🔸 Important Instructions:
-• You must never give a full response in Hindi or any other language unless explicitly asked.
-• Always prioritize English words unless a Bhojpuri response is requested.
-• Technical terms can be in English, but the explanation must be in the requested language.
-• If you accidentally respond in another language, immediately correct yourself.
-• **Crucially, provide only the information explicitly asked for by the user. Be concise and do not add any extraneous details or conversational filler unless directly prompted.**
+Examples:
+User: "How are you?" → Reply in English.  
+User: "तुम कैसे हो?" → Reply in Hindi.  
+User: "kaisan baa tohar haal?" → Reply in Bhojpuri.  
+User: "tm kya kar rahe ho?" → Reply in Hindi (since Hinglish = Hindi).  
 
-Remember: You are not just an AI, but a representative of Bihar's culture. Be proud of your identity and language! Every response should reflect clarity and helpfulness.`;
+---
+
+🔹 LANGUAGE DETECTION LOGIC
+
+Step 1 — Detect script:
+• If message is in Devanagari → Hindi or Bhojpuri.  
+• If message is in Roman (A–Z letters) → Go to Step 2.
+
+Step 2 — Detect by vocabulary:
+• If words resemble Hindi (tum, kya, kaise, kahan, nahi, acha, theek, kar rahe ho) → Treat as **Hindi (Hinglish)**.  
+• If words resemble Bhojpuri (kaisan, ba, rauaa, bani, ka, chhi, tani, ho, rahe baani) → Treat as **Bhojpuri (Romanized)**.  
+• If sentence follows English structure and words → **English**.
+
+Step 3 — Respond rule:
+• Hindi or Bhojpuri → respond in **Devanagari script** (not Roman).  
+• English → respond in English.  
+• Never explain what language the user used.  
+• Never say “You asked this…” or “This means…” — only reply with the answer itself.
+
+---
+
+🔹 PHONETIC (ROMANIZED) DETECTION EXAMPLES
+
+User Message → Response Language → Example Output
+
+• “tum kaise ho” → Hindi → “मैं ठीक हूँ! आप कैसे हैं?”
+• “tm kya kar rahe ho” → Hindi → “मैं बस बात कर रहा हूँ!”
+• “kaisan baa re ai” → Bhojpuri → “हम ठीक बानी! रउआ बताईं?”
+• “konwa chij sikhawala chahi” → Bhojpuri → “रउआ के का सिखावल चाही?”
+• “Who are you?” → English → “I am Tatva, an AI assistant from Bihar.”
+• “अब बताओ तुम कौन हो?” → Hindi → “मैं तत्‍व हूँ, बिहार से एक एआई सहायक।”
+
+---
+
+🔹 RESPONSE STYLE AND PERSONALITY
+• Be short, warm, and natural.  
+• No translations, no explanations of language or intent.  
+• Never say “You asked in Hindi” or “This means in English.”  
+• Do not prefix answers with “Namaste” or “You asked…” unless user greets first.  
+• Respectful, clear, and simple tone.  
+• Avoid robotic or academic language.  
+• Show humility and friendliness.
+
+---
+
+🔹 GREETINGS
+• English: “Hello! How are you?”
+• Hindi: “नमस्ते! कैसे हैं आप?”
+• Bhojpuri: “प्रणाम! रउआ कइसन बानी?”
+
+🔹 FAREWELLS
+• English: “Thank you! See you again!”
+• Hindi: “धन्यवाद! फिर मिलते हैं!”
+• Bhojpuri: “धन्यवाद! फेर से भेट होई!”
+
+---
+
+🔹 CONVERSATION RULES
+• Respond only to the message content.  
+• Never provide explanations or summaries unless requested.  
+• Maintain context logically but decide language only by latest user message.  
+• For long answers, break content into short sentences or bullet points.  
+• Ask for clarification politely if message is unclear — in the same language.
+
+Examples:
+• English: “Could you please clarify?”
+• Hindi: “कृपया थोड़ा स्पष्ट करें?”
+• Bhojpuri: “थोड़ा साफ-साफ बताईं?”
+
+---
+
+🔹 CONTENT GUIDELINES
+• Provide clear, factual, and concise responses.  
+• No personal data requests.  
+• No disclaimers like “As an AI language model.”  
+• No references to being programmed or trained.  
+• No unnecessary filler sentences.  
+• Respect all topics and avoid harmful or illegal content.  
+• When unsure, ask politely for more detail.
+
+---
+
+🔹 EXPERTISE
+Tatva has deep knowledge in:
+• Daily life, culture, language, and traditions of Bihar.
+• Bhojpuri and Hindi conversation, idioms, and expressions.
+• General knowledge, travel, geography, food, and culture.
+• Can explain topics simply when asked — in the user’s language.
+
+---
+
+🔹 OPERATIONAL SUMMARY
+✅ Always detect user’s intent language (even if written phonetically).  
+✅ Always respond in that exact language using correct script.  
+✅ Never use translation or meta explanations.  
+✅ Never repeat user message.  
+✅ Keep tone natural, warm, and human-like.  
+✅ Reflect the pride and simplicity of Bihar’s culture in every message.
+
+---
+
+🔹 EXAMPLES OF CORRECT BEHAVIOR
+
+User: "tm kya kar rahe ho?"
+✅ Reply: “मैं बस बात कर रहा हूँ।”  
+
+User: "kaisan baa bhai?"
+✅ Reply: “हम ठीक बानी!”  
+
+User: "Tell me something about Bihar."
+✅ Reply: “Bihar is known for its history, literature, and cultural pride.”  
+
+User: "अब बताओ तुम कौन हो?"
+✅ Reply: “मैं तत्‍व हूँ, बिहार से एक एआई सहायक।”
+
+---
+
+🔹 FINAL OPERATING PRINCIPLE
+Tatva must sound like a real, friendly person from Bihar — helpful, polite, and grounded.  
+Tatva must **never** break language alignment, explain detection logic, or switch to English unless explicitly told to.  
+Every message must feel culturally natural and emotionally intelligent — as if talking to a warm-hearted Bihari friend.
+
+End of system prompt.
+`;
+
 
         if (!this.A4F_API_KEY) {
             console.warn('[A4FModel] A4F_API_KEY not found in environment variables');
@@ -64,53 +172,39 @@ Remember: You are not just an AI, but a representative of Bihar's culture. Be pr
 
     /**
      * Creates request body for A4F API
-     * @param {Array} messages - Array of message objects with role and content (can be string or multimodal array)
+     * @param {Array} messages - Array of message objects with role and content
      * @param {boolean} stream - Whether to enable streaming
      * @param {string} model - Model to use (default: provider-1/chatgpt-4o-latest)
      * @param {boolean} includeSystemPrompt - Whether to include the system prompt (default: true)
      * @param {boolean} webSearch - Whether to perform web search (default: false)
+     * @param {Array} tools - Optional array of tool definitions for function calling
      * @returns {Object} Request body for A4F API
      */
-    async createA4FRequestBody(messages, stream = true, model = "provider-1/chatgpt-4o-latest", includeSystemPrompt = true, webSearch = false) {
-        let processedMessages = messages.map(msg => {
-            // Ensure content is always an array of parts for A4F
-            if (typeof msg.content === 'string') {
-                return { role: msg.role, content: [{ type: 'text', text: msg.content }] };
-            }
-            return msg;
-        });
+    async createA4FRequestBody(messages, stream = true, model = "provider-1/chatgpt-4o-latest", includeSystemPrompt = true, webSearch = false, tools = []) {
+        let processedMessages = [...messages];
 
-        // Perform web search if requested
-        if (webSearch && processedMessages.length > 0) {
-            const lastUserMessageIndex = processedMessages.length - 1;
-            const lastUserMessage = processedMessages[lastUserMessageIndex];
-
+        // Perform web search if requested (this logic will be moved to tool calling soon)
+        // For now, keep it for backward compatibility if webSearch flag is used directly
+        if (webSearch && messages.length > 0 && !tools.some(tool => tool.function.name === 'web_search')) {
+            const lastUserMessage = messages[messages.length - 1];
             if (lastUserMessage.role === 'user') {
-                // Extract text content from the last user message for web search query
-                const textPart = lastUserMessage.content.find(part => part.type === 'text');
-                const userQuery = textPart ? textPart.text : '';
+                console.log(`[A4FModel] ========== STARTING WEB SEARCH FOR A4F(Legacy) ==========`);
+                console.log(`[A4FModel] User query for web search: "${lastUserMessage.content}"`);
+                const searchContext = await this.webSearchService.performWebSearch(lastUserMessage.content);
 
-                if (userQuery) {
-                    console.log(`[A4FModel] ========== STARTING WEB SEARCH FOR A4F ==========`);
-                    console.log(`[A4FModel] User query for web search: "${userQuery}"`);
-                    const searchContext = await this.webSearchService.performWebSearch(userQuery);
-
-                    if (searchContext) {
-                        console.log(`[A4FModel] Web search successful! Context length: ${searchContext.length} characters`);
-                        console.log(`[A4FModel] Search context preview: "${searchContext.substring(0, 200)}..."`);
-
-                        // Append search context to the existing text part or add a new text part
-                        if (textPart) {
-                            textPart.text += searchContext;
-                        } else {
-                            lastUserMessage.content.push({ type: 'text', text: searchContext });
-                        }
-                        console.log(`[A4FModel] Web search context added to user message. New message length: ${JSON.stringify(lastUserMessage.content).length} characters`);
-                    } else {
-                        console.log('[A4FModel] ❌ No relevant web search results found or search failed');
-                    }
-                    console.log(`[A4FModel] ========== WEB SEARCH FOR A4F COMPLETED ==========`);
+                if (searchContext) {
+                    console.log(`[A4FModel] Web search successful! Context length: ${searchContext.length} characters`);
+                    console.log(`[A4FModel] Search context preview: "${searchContext.substring(0, 200)}..."`);
+                    // Add search context to the user's message
+                    processedMessages[processedMessages.length - 1] = {
+                        ...lastUserMessage,
+                        content: lastUserMessage.content + searchContext
+                    };
+                    console.log(`[A4FModel] Web search context added to user message.New message length: ${processedMessages[processedMessages.length - 1].content.length} characters`);
+                } else {
+                    console.log('[A4FModel] ❌ No relevant web search results found or search failed');
                 }
+                console.log(`[A4FModel] ========== WEB SEARCH FOR A4F(Legacy) COMPLETED ==========`);
             }
         }
 
@@ -119,12 +213,17 @@ Remember: You are not just an AI, but a representative of Bihar's culture. Be pr
             messages: includeSystemPrompt ? [
                 {
                     role: 'system',
-                    content: [{ type: 'text', text: this.SYSTEM_PROMPT }] // System prompt also as multimodal text
+                    content: this.SYSTEM_PROMPT
                 },
                 ...processedMessages
             ] : processedMessages,
             stream: stream
         };
+
+        if (tools && tools.length > 0) {
+            requestBody.tools = tools;
+            requestBody.tool_choice = "auto"; // Let the model decide whether to call a tool
+        }
 
         return requestBody;
     }
@@ -140,8 +239,8 @@ Remember: You are not just an AI, but a representative of Bihar's culture. Be pr
             throw new Error('A4F_API_KEY is not configured in environment variables');
         }
 
-        console.log(`[A4FModel] Sending request to A4F API:`, JSON.stringify(requestBody, null, 2));
-        console.log(`[A4FModel] A4F API URL:`, this.A4F_BASE_URL);
+        console.log(`[A4FModel] Sending request to A4F API: `, JSON.stringify(requestBody, null, 2));
+        console.log(`[A4FModel] A4F API URL: `, this.A4F_BASE_URL);
 
         for (let attempt = 1; attempt <= retries; attempt++) {
             try {
@@ -161,7 +260,8 @@ Remember: You are not just an AI, but a representative of Bihar's culture. Be pr
                 console.log(`[A4FModel] A4F API Response Headers:`, Object.fromEntries(response.headers.entries()));
 
                 if (!response.ok) {
-                    throw new Error(`A4F API request failed with status: ${response.status} - ${response.statusText}`);
+                    const errorBody = await response.text();
+                    throw new Error(`A4F API request failed with status: ${response.status} - ${response.statusText}. Body: ${errorBody}`);
                 }
 
                 console.log(`[A4FModel] Successfully connected to A4F API`);
@@ -185,18 +285,21 @@ Remember: You are not just an AI, but a representative of Bihar's culture. Be pr
      * @param {Array} messages - Array of message objects
      * @param {string} model - Model to use
      * @param {boolean} includeSystemPrompt - Whether to include the system prompt
-     * @param {boolean} webSearch - Whether to perform web search
-     * @returns {Promise<Object>} Response object with content
+     * @param {boolean} webSearch - Whether to perform web search (legacy flag)
+     * @param {Array} tools - Optional array of tool definitions
+     * @returns {Promise<Object>} Response object with content and/or tool_calls
      */
-    async getA4FResponse(messages, model = "provider-1/chatgpt-4o-latest", includeSystemPrompt = true, webSearch = false) {
-        const requestBody = await this.createA4FRequestBody(messages, false, model, includeSystemPrompt, webSearch);
+    async getA4FResponse(messages, model = "provider-1/chatgpt-4o-latest", includeSystemPrompt = true, webSearch = false, tools = []) {
+        const requestBody = await this.createA4FRequestBody(messages, false, model, includeSystemPrompt, webSearch, tools);
         const response = await this.sendA4FRequest(requestBody);
         const data = await response.json();
 
-        return {
+        const result = {
             content: data.choices?.[0]?.message?.content || '',
+            tool_calls: data.choices?.[0]?.message?.tool_calls || [],
             raw: data
         };
+        return result;
     }
 
     /**
@@ -204,11 +307,12 @@ Remember: You are not just an AI, but a representative of Bihar's culture. Be pr
      * @param {Array} messages - Array of message objects
      * @param {string} model - Model to use
      * @param {boolean} includeSystemPrompt - Whether to include the system prompt
-     * @param {boolean} webSearch - Whether to perform web search
+     * @param {boolean} webSearch - Whether to perform web search (legacy flag)
+     * @param {Array} tools - Optional array of tool definitions
      * @returns {Promise<Response>} Streaming response
      */
-    async getStreamingA4FResponse(messages, model = "provider-1/chatgpt-4o-latest", includeSystemPrompt = true, webSearch = false) {
-        const requestBody = await this.createA4FRequestBody(messages, true, model, includeSystemPrompt, webSearch);
+    async getStreamingA4FResponse(messages, model = "provider-1/chatgpt-4o-latest", includeSystemPrompt = true, webSearch = false, tools = []) {
+        const requestBody = await this.createA4FRequestBody(messages, true, model, includeSystemPrompt, webSearch, tools);
         return await this.sendA4FRequest(requestBody);
     }
 
@@ -223,7 +327,7 @@ Remember: You are not just an AI, but a representative of Bihar's culture. Be pr
             }
 
             // Simple test request to check API availability
-            const testMessages = [{ role: "user", content: [{ type: 'text', text: "Hello" }] }]; // Test message as multimodal
+            const testMessages = [{ role: "user", content: "Hello" }];
             const requestBody = await this.createA4FRequestBody(testMessages, false, "provider-1/chatgpt-4o-latest", false, false); // Don't include system prompt or web search for health check
 
             const response = await fetch(this.A4F_BASE_URL, {
@@ -247,4 +351,6 @@ Remember: You are not just an AI, but a representative of Bihar's culture. Be pr
     }
 }
 
+
 module.exports = A4FModel;
+
